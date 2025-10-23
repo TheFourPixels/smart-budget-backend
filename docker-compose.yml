@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:14-alpine
+    container_name: smartbudget_db
+    restart: always
+    environment:
+      POSTGRES_DB: smartbudget
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 12345
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  core-service:
+    build:
+      context: ./core
+      dockerfile: Dockerfile
+    container_name: core_service
+    ports:
+      - "8081:8081"
+    environment:
+
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/smartbudget
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: 12345
+    depends_on:
+      - db
+
+  budget-service:
+    build:
+      context: ./budget-service
+      dockerfile: Dockerfile
+    container_name: budget_service
+    ports:
+      - "8082:8082"
+    environment:
+
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/smartbudget
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: 12345
+    depends_on:
+      - db
+      - core-service
+
+volumes:
+  postgres_data:
