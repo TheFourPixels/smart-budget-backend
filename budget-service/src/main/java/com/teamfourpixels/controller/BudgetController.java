@@ -16,37 +16,50 @@ public class BudgetController {
 
     private final BudgetService budgetService;
 
+    private Integer convertToTime(Integer year, Integer month) {
+        if (year == null || month == null || month < 1 || month > 12) {
+            throw new IllegalArgumentException("Некорректный год или месяц.");
+        }
+        return year * 100 + month;
+    }
+
     @PostMapping
     public ResponseEntity<BudgetDto> createOrUpdateBudget(@AuthenticationPrincipal UserPrincipal userPrincipal,
                                                           @RequestBody CreateBudgetRequest request) {
         return ResponseEntity.ok(budgetService.createOrUpdateBudget(userPrincipal.getId(), request));
     }
 
-    @GetMapping("/{time}")
+    @GetMapping("/{year}/{month}")
     public ResponseEntity<BudgetDto> getBudget(@AuthenticationPrincipal UserPrincipal userPrincipal,
-                                               @PathVariable Integer time) {
+                                               @PathVariable Integer year,
+                                               @PathVariable Integer month) {
+        Integer time = convertToTime(year, month);
         return ResponseEntity.ok(budgetService.getBudget(userPrincipal.getId(), time));
     }
 
-    @DeleteMapping("/{time}")
+    @DeleteMapping("/{year}/{month}")
     public ResponseEntity<Void> deleteBudget(@AuthenticationPrincipal UserPrincipal userPrincipal,
-                                             @PathVariable Integer time) {
+                                             @PathVariable Integer year,
+                                             @PathVariable Integer month) {
+        Integer time = convertToTime(year, month);
         budgetService.deleteBudget(userPrincipal.getId(), time);
         return ResponseEntity.noContent().build();
     }
 
-    @GetMapping("/{time}/dashboard")
+    @GetMapping("/{year}/{month}/dashboard")
     public ResponseEntity<DashboardDataDto> getDashboard(@AuthenticationPrincipal UserPrincipal userPrincipal,
-                                                         @PathVariable Integer time) {
+                                                         @PathVariable Integer year,
+                                                         @PathVariable Integer month) {
+        Integer time = convertToTime(year, month);
         DashboardDataDto data = new DashboardDataDto();
         BudgetDto budget = budgetService.getBudget(userPrincipal.getId(), time);
 
         data.setBudgetPlan(budget.getTotalIncome());
         data.setTotalSpent(BigDecimal.ZERO);
         data.setRemainingBudget(budget.getTotalIncome().subtract(data.getTotalSpent()));
-        // data.setYear(time / 100);
-        // data.setMonth(time % 100);
-        // -----------------------------------------------------------------
+
+        data.setYear(year);
+        data.setMonth(month);
 
         return ResponseEntity.ok(data);
     }

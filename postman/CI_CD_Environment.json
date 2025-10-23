@@ -1,0 +1,63 @@
+{
+	"id": "40a0121e-edb8-4430-b3b1-d5ea174c7e06",
+	"name": "Prototype",
+	"values": [
+		{
+			"key": "url",
+			"value": "https://47bf54fd-26eb-45b0-be2a-e5e42658a46b.mock.pstmn.io",
+			"type": "text",
+			"enabled": true
+		},
+		{
+			"key": "base_url",
+			"value": "",
+			"type": "default",
+			"enabled": true
+		},
+		{
+			"key": "BASE_URL",
+			"value": "",
+			"type": "default",
+			"enabled": true
+		},
+		{
+			"key": "test_user_email",
+			"value": "",
+			"type": "default",
+			"enabled": true
+		},
+		{
+			"key": "test_user_password",
+			"value": "",
+			"type": "default",
+			"enabled": true
+		},
+		{
+			"key": "jwt_token",
+			"value": "",
+			"type": "default",
+			"enabled": true
+		},
+		{
+			"key": "test_category_id",
+			"value": "",
+			"type": "default",
+			"enabled": true
+		},
+		{
+			"key": "test_budget_year",
+			"value": "",
+			"type": "default",
+			"enabled": true
+		},
+		{
+			"key": "test_budget_month",
+			"value": "",
+			"type": "default",
+			"enabled": true
+		}
+	],
+	"_postman_variable_scope": "environment",
+	"_postman_exported_at": "2025-10-23T21:41:30.829Z",
+	"_postman_exported_using": "Postman/11.67.2"
+}

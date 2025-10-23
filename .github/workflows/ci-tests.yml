@@ -1,0 +1,50 @@
+name: CI & API Tests
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+jobs:
+  api_tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+
+      - name: Build with Maven
+        run: mvn clean install -DskipTests
+
+      - name: Start Services (DB and Spring Apps)
+        run: docker-compose up -d --build
+
+      - name: Wait for Budget Service to be healthy
+        uses: nev7n/wait_for_response@v1
+        with:
+          url: http://localhost:8082/api/v1/auth/login
+          check-interval: 5
+          timeout: 60
+
+      - name: Install Newman and dependencies
+        run: npm install -g newman newman-reporter-htmlextra
+
+      - name: Run Postman Collection via Newman
+        run: newman run postman/SmartBudget_Collection.json -e postman/CI_CD_Environment.json --reporters cli
+
+      - name: Stop Services
+        if: always()
+        run: docker-compose down
