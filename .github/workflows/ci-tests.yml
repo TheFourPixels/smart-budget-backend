@@ -25,21 +25,20 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      # НОВЫЙ ШАГ: Сборка проекта с подавлением вывода
-      # Флаги -B (Batch Mode) и -q (Quiet Mode) скрывают загрузку зависимостей
       - name: Build Project (Quiet Mode)
         run: mvn -B package --file pom.xml -DskipTests -q
 
       - name: Start Services (DB and Spring Apps)
-        # Поскольку JAR уже собран, --build больше не нужен, но мы его оставим на случай изменений в Dockerfile
         run: docker compose up -d --build
 
       - name: Wait for Budget Service to be healthy
         uses: nev7n/wait_for_response@v1
         with:
           url: http://localhost:8082/api/v1/auth/login
-          check-interval: 5
-          timeout: 60
+
+          interval: 1
+
+          timeout: 90
 
       - name: Install Newman and dependencies
         run: npm install -g newman newman-reporter-htmlextra
