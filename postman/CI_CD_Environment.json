@@ -3,20 +3,8 @@
 	"name": "Prototype",
 	"values": [
 		{
-			"key": "url",
-			"value": "https://47bf54fd-26eb-45b0-be2a-e5e42658a46b.mock.pstmn.io",
-			"type": "text",
-			"enabled": true
-		},
-		{
-			"key": "base_url",
-			"value": "",
-			"type": "default",
-			"enabled": true
-		},
-		{
 			"key": "BASE_URL",
-			"value": "",
+			"value": "http://localhost:8082",
 			"type": "default",
 			"enabled": true
 		},
