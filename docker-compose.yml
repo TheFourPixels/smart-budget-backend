@@ -14,21 +14,6 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
-  core-service:
-    build:
-      context: ./core
-      dockerfile: Dockerfile
-    container_name: core_service
-    ports:
-      - "8081:8081"
-    environment:
-
-      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/smartbudget
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: 12345
-    depends_on:
-      - db
-
   budget-service:
     build:
       context: ./budget-service
@@ -43,7 +28,6 @@ services:
       SPRING_DATASOURCE_PASSWORD: 12345
     depends_on:
       - db
-      - core-service
 
 volumes:
   postgres_data:

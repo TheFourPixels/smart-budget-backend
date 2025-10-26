@@ -8,13 +8,16 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
 
 @RestController
 @RequestMapping("/api/v1/budgets")
-@RequiredArgsConstructor
+@AllArgsConstructor
+@NoArgsConstructor(force = true)
 public class BudgetController {
 
-    private final BudgetService budgetService;
+    private BudgetService budgetService;
 
     private Integer convertToTime(Integer year, Integer month) {
         if (year == null || month == null || month < 1 || month > 12) {

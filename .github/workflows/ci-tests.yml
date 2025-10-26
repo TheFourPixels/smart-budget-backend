@@ -18,19 +18,21 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set up JDK 21
+      - name: Set up JDK 21 and Cache Maven Dependencies
         uses: actions/setup-java@v4
         with:
           java-version: '21'
           distribution: 'temurin'
           cache: maven
 
-
-      - name: Build with Maven
-        run: mvn clean install -DskipTests
+      # НОВЫЙ ШАГ: Сборка проекта с подавлением вывода
+      # Флаги -B (Batch Mode) и -q (Quiet Mode) скрывают загрузку зависимостей
+      - name: Build Project (Quiet Mode)
+        run: mvn -B package --file pom.xml -DskipTests -q
 
       - name: Start Services (DB and Spring Apps)
-        run: docker-compose up -d --build
+        # Поскольку JAR уже собран, --build больше не нужен, но мы его оставим на случай изменений в Dockerfile
+        run: docker compose up -d --build
 
       - name: Wait for Budget Service to be healthy
         uses: nev7n/wait_for_response@v1
@@ -47,4 +49,4 @@ jobs:
 
       - name: Stop Services
         if: always()
-        run: docker-compose down
+        run: docker compose down
