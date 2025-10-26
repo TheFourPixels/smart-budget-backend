@@ -44,7 +44,11 @@ jobs:
         run: npm install -g newman newman-reporter-htmlextra
 
       - name: Run Postman Collection via Newman
-        run: newman run postman/SmartBudget_Collection.json -e postman/CI_CD_Environment.json --reporters cli
+        run: |
+          newman run postman/SmartBudget_Collection.json \
+            -e postman/CI_CD_Environment.json \
+            --env-var "BASE_URL=http://localhost:8082" \
+            --reporters cli
 
       - name: Stop Services
         if: always()
