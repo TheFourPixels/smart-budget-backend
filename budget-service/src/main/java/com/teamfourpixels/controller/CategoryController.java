@@ -2,11 +2,9 @@ package com.teamfourpixels.controller;
 
 import com.teamfourpixels.dto.CategoryDto;
 import com.teamfourpixels.dto.CreateCategoryRequest;
-import com.teamfourpixels.security.UserPrincipal;
 import com.teamfourpixels.service.CategoryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -17,29 +15,27 @@ import java.util.List;
 public class CategoryController {
 
     private final CategoryService categoryService;
+    private static final Long DUMMY_USER_ID = 1L;
 
     @GetMapping
-    public ResponseEntity<List<CategoryDto>> getAllCategories(@AuthenticationPrincipal UserPrincipal userPrincipal) {
-        return ResponseEntity.ok(categoryService.getAllCategories(userPrincipal.getId()));
+    public ResponseEntity<List<CategoryDto>> getAllCategories() {
+        return ResponseEntity.ok(categoryService.getAllCategories(DUMMY_USER_ID));
     }
 
     @PostMapping
-    public ResponseEntity<CategoryDto> createCategory(@AuthenticationPrincipal UserPrincipal userPrincipal,
-                                                      @RequestBody CreateCategoryRequest request) {
-        return ResponseEntity.created(null).body(categoryService.createCategory(userPrincipal.getId(), request));
+    public ResponseEntity<CategoryDto> createCategory(@RequestBody CreateCategoryRequest request) {
+        return ResponseEntity.created(null).body(categoryService.createCategory(DUMMY_USER_ID, request));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<CategoryDto> updateCategory(@AuthenticationPrincipal UserPrincipal userPrincipal,
-                                                      @PathVariable Long id,
+    public ResponseEntity<CategoryDto> updateCategory(@PathVariable Long id,
                                                       @RequestBody CreateCategoryRequest request) {
-        return ResponseEntity.ok(categoryService.updateCategory(userPrincipal.getId(), id, request));
+        return ResponseEntity.ok(categoryService.updateCategory(DUMMY_USER_ID, id, request));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteCategory(@AuthenticationPrincipal UserPrincipal userPrincipal,
-                                               @PathVariable Long id) {
-        categoryService.deleteCategory(userPrincipal.getId(), id);
+    public ResponseEntity<Void> deleteCategory(@PathVariable Long id) {
+        categoryService.deleteCategory(DUMMY_USER_ID, id);
         return ResponseEntity.noContent().build();
     }
 }

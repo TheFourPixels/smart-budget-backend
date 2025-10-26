@@ -4,7 +4,7 @@
 	"values": [
 		{
 			"key": "baseUrl",
-			"value": "http://localhost:8082",
+			"value": "http://localhost:8082/api/v1",
 			"type": "default",
 			"enabled": true
 		},

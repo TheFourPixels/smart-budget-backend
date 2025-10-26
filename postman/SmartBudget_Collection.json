@@ -662,12 +662,12 @@
 											"variable": [
 												{
 													"key": "year",
-													"value": "17",
+													"value": "2024",
 													"description": "Год (например, 2024)"
 												},
 												{
 													"key": "month",
-													"value": "17",
+													"value": "10",
 													"description": "Месяц (например, 10)"
 												}
 											]
@@ -850,12 +850,12 @@
 											"variable": [
 												{
 													"key": "year",
-													"value": "17",
+													"value": "2024",
 													"description": "Год (например, 2024)"
 												},
 												{
 													"key": "month",
-													"value": "17",
+													"value": "10",
 													"description": "Месяц (например, 10)"
 												}
 											]
@@ -1026,7 +1026,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"year\": 2025,\n  \"month\": 10,\n  \"total_income\": 100000,\n  \"limits\": [\n    {\n      \"category_id\": 1,\n      \"limit_value\": 25,\n      \"limit_type\": \"PERCENT\"\n    }\n  ]\n}",
+							"raw": "{\n  \"year\": 2025,\n  \"month\": 10,\n  \"total_income\": 100000,\n  \"limits\": [\n    {\n      \"category_id\": 1,\n      \"limit_value\": 100,\n      \"limit_type\": \"PERCENT\"\n    }\n  ]\n}",
 							"options": {
 								"raw": {
 									"headerFamily": "json",
@@ -3657,12 +3657,12 @@
 											"variable": [
 												{
 													"key": "year",
-													"value": "17",
+													"value": "2024",
 													"description": "Год (например, 2024)"
 												},
 												{
 													"key": "month",
-													"value": "17",
+													"value": "10",
 													"description": "Месяц (например, 10)"
 												}
 											]
@@ -4082,7 +4082,7 @@
 	"variable": [
 		{
 			"key": "baseUrl",
-			"value": "https://virtserver.swaggerhub.com/thefourpixels/SmartBudgetApi/1.0.0"
+			"value": "http://localhost:8082/api/v1"
 		}
 	]
 }
