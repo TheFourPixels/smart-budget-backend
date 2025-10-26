@@ -31,14 +31,31 @@ jobs:
       - name: Start Services (DB and Spring Apps)
         run: docker compose up -d --build
 
-      - name: Wait for Budget Service to be healthy
-        uses: nev7n/wait_for_response@v1
-        with:
-          url: http://localhost:8082/api/v1/auth/login
+      - name: Wait for Budget Service to be healthy (BASH & CURL)
+        run: |
+          MAX_RETRIES=90
+          URL="http://localhost:8082/api/v1/auth/login"
+          
+          echo "Waiting for Budget Service to start up at $URL..."
 
-          interval: 1
-
-          timeout: 90
+          for i in $(seq 1 $MAX_RETRIES); do
+            # Проверяем ответ сервера (статус-код 200)
+            STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" $URL)
+          
+            if [ "$STATUS_CODE" -eq 200 ] || [ "$STATUS_CODE" -eq 401 ]; then
+              # Spring Security вернет 401 Unauthorized, если сервис жив,
+              # поэтому 401 — это тоже признак успеха.
+              echo "✅ Service is UP (Status: $STATUS_CODE) after $i seconds."
+              exit 0
+            fi
+          
+            echo "Attempt $i/$MAX_RETRIES: Service not ready (Status: $STATUS_CODE). Waiting 1 second..."
+            sleep 1
+          done
+          
+          echo "❌ Timed out after $MAX_RETRIES seconds. Service failed to start."
+          exit 1
+        shell: bash
 
       - name: Install Newman and dependencies
         run: npm install -g newman newman-reporter-htmlextra
