@@ -3,7 +3,7 @@
 	"name": "Prototype",
 	"values": [
 		{
-			"key": "BASE_URL",
+			"key": "baseUrl",
 			"value": "http://localhost:8082",
 			"type": "default",
 			"enabled": true

@@ -16,12 +16,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class BudgetServiceImpl implements BudgetService {
 
-    private BudgetRepository budgetRepository;
-    private BudgetMapper budgetMapper;
-
-    public BudgetServiceImpl(BudgetRepository budgetRepository) {
-        this.budgetRepository = budgetRepository;
-    }
+    private final BudgetRepository budgetRepository;
+    private final BudgetMapper budgetMapper;
 
     @Override
     @Transactional
