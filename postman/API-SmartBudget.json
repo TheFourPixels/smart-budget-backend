@@ -47,7 +47,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"year\": 2025,\n  \"month\": 10,\n  \"totalIncome\": 100000.00,\n  \"limits\": [\n    {\"categoryId\": 1, \"limitValue\": 50.00, \"limitType\": \"PERCENT\"},\n    {\"categoryId\": 2, \"limitValue\": 50.00, \"limitType\": \"PERCENT\"}\n  ]\n}",
+              "raw": "{\n  \"totalIncome\": 100000.00,\n  \"limits\": [\n    {\"categoryId\": 1, \"limitValue\": 50.00, \"limitType\": \"PERCENT\"},\n    {\"categoryId\": 2, \"limitValue\": 50.00, \"limitType\": \"PERCENT\"}\n  ]\n}",
               "options": {
                 "raw": {
                   "headerFamily": "json",
@@ -56,9 +56,9 @@
               }
             },
             "url": {
-              "raw": "{{baseUrl}}/budgets",
+              "raw": "{{baseUrl}}/budgets/2025/10",
               "host": ["{{baseUrl}}"],
-              "path": ["budgets"]
+              "path": ["budgets", "2025", "10"]
             }
           },
           "response": []
@@ -212,7 +212,6 @@
                   "    pm.expect(pm.response.json().length).to.be.greaterThan(0);",
                   "    pm.expect(pm.response.json()[0]).to.have.property(\"id\");",
                   "    pm.expect(pm.response.json()[0]).to.have.property(\"name\");",
-                  "    // Проверка, что созданная категория есть в списке (опционально)",
                   "    var createdCategoryId = parseInt(pm.environment.get(\"categoryId\"));",
                   "    var found = pm.response.json().some(category => category.id === createdCategoryId);",
                   "    pm.expect(found).to.be.true;",
