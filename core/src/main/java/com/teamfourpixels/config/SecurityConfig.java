@@ -14,16 +14,11 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                // Отключаем CSRF (обязательно для REST API)
                 .csrf(AbstractHttpConfigurer::disable)
-                // Отключаем CORS (можно оставить, если настроен)
                 .cors(AbstractHttpConfigurer::disable)
-                // Главный шаг: Разрешить ВСЕ запросы
                 .authorizeHttpRequests(authorize -> authorize
-                        .anyRequest().permitAll() // <-- Все пути разрешены без аутентификации
+                        .anyRequest().permitAll()
                 );
-
-        // Удалили: .addFilterBefore(new JwtAuthenticationFilter(...), ...)
 
         return http.build();
     }

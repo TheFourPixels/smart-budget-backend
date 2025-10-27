@@ -34,7 +34,7 @@ jobs:
       - name: Wait for Budget Service to be healthy
         uses: nev7n/wait_for_response@v1
         with:
-          url: http://localhost:8082/health
+          url: http://localhost:8081/health
 
           interval: 5000
 
@@ -45,9 +45,9 @@ jobs:
 
       - name: Run Postman Collection via Newman
         run: |
-          newman run postman/SmartBudget_Collection.json \
+          newman run postman/API-SmartBudget.json \
             -e postman/CI_CD_Environment.json \
-            --env-var "BASE_URL=http://localhost:8082" \
+            --env-var "baseUrl=http://localhost:8081" \
             --reporters cli
           
       - name: Dump Docker Logs on Failure
