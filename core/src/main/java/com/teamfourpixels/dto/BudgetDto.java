@@ -7,7 +7,8 @@ import java.util.List;
 @Data
 public class BudgetDto {
     private Long id;
-    private Integer time;
+    private Integer year;
+    private Integer month;
     private BigDecimal totalIncome;
     private List<LimitDto> limits;
 }

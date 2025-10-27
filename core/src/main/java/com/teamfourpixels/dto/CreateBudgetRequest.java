@@ -6,7 +6,8 @@ import java.util.List;
 
 @Data
 public class CreateBudgetRequest {
-    private Integer time;
+    private Integer year;
+    private Integer month;
     private BigDecimal totalIncome;
     private List<LimitDto> limits;
 }

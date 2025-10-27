@@ -5,6 +5,7 @@ import com.teamfourpixels.service.BudgetService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
 import java.math.BigDecimal;
 
 @RestController
@@ -15,10 +16,14 @@ public class BudgetController {
     private final BudgetService budgetService;
     private static final Long DUMMY_USER_ID = 1L;
 
-    @PostMapping
+    @PostMapping("/{year}/{month}")
     public ResponseEntity<BudgetDto> createOrUpdateBudget(
+            @PathVariable Integer year,
+            @PathVariable Integer month,
             @RequestBody CreateBudgetRequest request) {
-        return ResponseEntity.ok(budgetService.createOrUpdateBudget(DUMMY_USER_ID, request));
+        System.out.println("Received year: " + year + ", month: " + month + ", totalIncome: " + request.getTotalIncome());
+        System.out.println("Limits: " + request.getLimits());
+        return ResponseEntity.ok(budgetService.createOrUpdateBudget(DUMMY_USER_ID, year, month, request));
     }
 
     @GetMapping("/{year}/{month}")
@@ -26,7 +31,7 @@ public class BudgetController {
             @PathVariable Integer year,
             @PathVariable Integer month) {
         Integer time = convertToTime(year, month);
-        return ResponseEntity.ok(budgetService.getBudget(DUMMY_USER_ID, time));
+        return ResponseEntity.ok(budgetService.getBudget(DUMMY_USER_ID, year, month));
     }
 
     @DeleteMapping("/{year}/{month}")
@@ -34,7 +39,7 @@ public class BudgetController {
             @PathVariable Integer year,
             @PathVariable Integer month) {
         Integer time = convertToTime(year, month);
-        budgetService.deleteBudget(DUMMY_USER_ID, time);
+        budgetService.deleteBudget(DUMMY_USER_ID, year, month);
         return ResponseEntity.noContent().build();
     }
 
@@ -44,12 +49,11 @@ public class BudgetController {
             @PathVariable Integer month) {
         Integer time = convertToTime(year, month);
         DashboardDataDto data = new DashboardDataDto();
-        BudgetDto budget = budgetService.getBudget(DUMMY_USER_ID, time);
+        BudgetDto budget = budgetService.getBudget(DUMMY_USER_ID, year, month);
 
         data.setBudgetPlan(budget.getTotalIncome());
         data.setTotalSpent(BigDecimal.ZERO);
         data.setRemainingBudget(budget.getTotalIncome().subtract(data.getTotalSpent()));
-
         data.setYear(year);
         data.setMonth(month);
 

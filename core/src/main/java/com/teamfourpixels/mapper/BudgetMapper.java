@@ -8,7 +8,8 @@ import java.util.stream.Collectors;
 
 @Mapper(componentModel = "spring")
 public interface BudgetMapper {
-
+    @Mapping(source = "year", target = "year")
+    @Mapping(source = "month", target = "month")
     BudgetDto toDto(Budget entity);
 
     @Mapping(target = "budget", source = "budget")

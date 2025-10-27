@@ -21,8 +21,7 @@ public class BudgetServiceImpl implements BudgetService {
 
     @Override
     @Transactional
-    public BudgetDto createOrUpdateBudget(Long userId, CreateBudgetRequest request) {
-
+    public BudgetDto createOrUpdateBudget(Long userId, Integer year, Integer month, CreateBudgetRequest request) {
         BigDecimal percentSum = request.getLimits().stream()
                 .filter(l -> l.getLimitType() == BudgetLimit.LimitType.PERCENT)
                 .map(LimitDto::getLimitValue)
@@ -40,11 +39,12 @@ public class BudgetServiceImpl implements BudgetService {
         }
 
         Budget budget = budgetRepository
-                .findByUserIdAndTime(userId, request.getTime())
+                .findByUserIdAndYearAndMonth(userId, year, month)
                 .orElse(Budget.builder().build());
 
         budget.setUserId(userId);
-        budget.setTime(request.getTime());
+        budget.setYear(year);
+        budget.setMonth(month);
         budget.setTotalIncome(request.getTotalIncome());
 
         budget.getLimits().clear();
@@ -55,15 +55,15 @@ public class BudgetServiceImpl implements BudgetService {
     }
 
     @Override
-    public BudgetDto getBudget(Long userId, Integer time) {
-        return budgetRepository.findByUserIdAndTime(userId, time)
+    public BudgetDto getBudget(Long userId, Integer year, Integer month) {
+        return budgetRepository.findByUserIdAndYearAndMonth(userId, year, month)
                 .map(budgetMapper::toDto)
                 .orElseThrow(() -> new EntityNotFoundException("Бюджет не найден"));
     }
 
     @Override
     @Transactional
-    public void deleteBudget(Long userId, Integer time) {
-        budgetRepository.deleteByUserIdAndTime(userId, time);
+    public void deleteBudget(Long userId, Integer year, Integer month) {
+        budgetRepository.deleteByUserIdAndYearAndMonth(userId, year, month);
     }
 }

@@ -22,7 +22,10 @@ public class Budget {
     private Long userId;
 
     @Column(nullable = false)
-    private Integer time;
+    private Integer year;
+
+    @Column(nullable = false)
+    private Integer month;
 
     @Column(precision = 19, scale = 4)
     private BigDecimal totalIncome;
