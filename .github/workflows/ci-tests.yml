@@ -47,7 +47,7 @@ jobs:
         run: |
           newman run postman/API-SmartBudget.json \
             -e postman/CI_CD_Environment.json \
-            --env-var "baseUrl=http://localhost:8081" \
+            --env-var "baseUrl=http://localhost:8081/api/v1" \
             --reporters cli
           
       - name: Dump Docker Logs on Failure
