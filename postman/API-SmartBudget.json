@@ -1,0 +1,352 @@
+{
+  "info": {
+    "_postman_id": "f12f87d9-eb3d-4e21-a0eb-1fecf2123843",
+    "name": "API \"Smart Budget\" - Budget and Categories Only",
+    "description": "Документация API для управления бюджетом и категориями",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "42953160"
+  },
+  "item": [
+    {
+      "name": "budgets",
+      "item": [
+        {
+          "name": "Создать или обновить бюджет на период",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Budget created or updated successfully\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json().year).to.equal(2025);",
+                  "    pm.expect(pm.response.json().month).to.equal(10);",
+                  "    pm.expect(pm.response.json().totalIncome).to.equal(100000.00);",
+                  "    pm.expect(pm.response.json().limits.length).to.equal(2);",
+                  "    pm.expect(pm.response.json().limits[0].categoryId).to.equal(1);",
+                  "    pm.expect(pm.response.json().limits[0].limitValue).to.equal(50.00);",
+                  "    pm.expect(pm.response.json().limits[0].limitType).to.equal(\"PERCENT\");",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"totalIncome\": 100000.00,\n  \"limits\": [\n    {\n      \"categoryId\": 1,\n      \"limitValue\": 50.00,\n      \"limitType\": \"PERCENT\"\n    },\n    {\n      \"categoryId\": 2,\n      \"limitValue\": 50.00,\n      \"limitType\": \"PERCENT\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "headerFamily": "json",
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/budgets/2025/10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "budgets",
+                "2025",
+                "10"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Получить бюджет и лимиты на период",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Budget retrieved successfully\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json().year).to.equal(2025);",
+                  "    pm.expect(pm.response.json().month).to.equal(10);",
+                  "    pm.expect(pm.response.json().totalIncome).to.equal(100000.00);",
+                  "    pm.expect(pm.response.json().limits.length).to.equal(2);",
+                  "    pm.expect(pm.response.json().limits[0].categoryId).to.equal(1);",
+                  "    pm.expect(pm.response.json().limits[0].limitValue).to.equal(50.00);",
+                  "    pm.expect(pm.response.json().limits[0].limitType).to.equal(\"PERCENT\");",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/budgets/2025/10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "budgets",
+                "2025",
+                "10"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Удалить бюджет на период",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Budget deleted successfully\", function () {",
+                  "    pm.response.to.have.status(204);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/budgets/2025/10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "budgets",
+                "2025",
+                "10"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "categories",
+      "item": [
+        {
+          "name": "Получить список всех доступных категорий",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Categories retrieved successfully\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json()).to.be.an(\"array\");",
+                  "    pm.expect(pm.response.json().length).to.be.greaterThan(0);",
+                  "    pm.expect(pm.response.json()[0]).to.have.property(\"id\");",
+                  "    pm.expect(pm.response.json()[0]).to.have.property(\"name\");",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/categories",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "categories"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Создать новую пользовательскую категорию",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Category created successfully\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "    pm.expect(pm.response.json()).to.have.property(\"id\");",
+                  "    pm.expect(pm.response.json().name).to.equal(\"Новая категория\");",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Новая категория\"\n}",
+              "options": {
+                "raw": {
+                  "headerFamily": "json",
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/categories",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "categories"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Обновить существующую категорию",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Category updated successfully\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json()).to.have.property(\"id\");",
+                  "    pm.expect(pm.response.json().name).to.equal(\"Обновленная категория\");",
+                  "    pm.expect(pm.response.json().isSystem).to.equal(false);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Обновленная категория\"\n}",
+              "options": {
+                "raw": {
+                  "headerFamily": "json",
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/categories/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "categories",
+                "1"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Удалить пользовательскую категорию",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Category deleted successfully\", function () {",
+                  "    pm.response.to.have.status(204);",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/categories/1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "categories",
+                "1"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8081/api/v1"
+    }
+  ]
+}
