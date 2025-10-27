@@ -28,5 +28,6 @@ public class Budget {
     private BigDecimal totalIncome;
 
     @OneToMany(mappedBy = "budget", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
     private List<BudgetLimit> limits = new ArrayList<>();
 }
