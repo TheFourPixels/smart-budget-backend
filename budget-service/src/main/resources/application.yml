@@ -19,3 +19,12 @@ spring:
 jwt:
   secret: secret-key
   expiration: 3600000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, metrics
+  endpoint:
+    health:
+      show-details: always

@@ -34,7 +34,7 @@ jobs:
       - name: Wait for Budget Service to be healthy
         uses: nev7n/wait_for_response@v1
         with:
-          url: http://localhost:8081/health
+          url: http://localhost:8081/actuator/health
 
           interval: 5000
 
