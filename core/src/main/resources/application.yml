@@ -3,14 +3,14 @@ server:
 
 spring:
   application:
-    name: core-budget-service
+    name: core
   datasource:
-    url: ${SPRING_DATASOURCE_URL}
-    username: ${SPRING_DATASOURCE_USERNAME}
-    password: ${SPRING_DATASOURCE_PASSWORD}
+    url: jdbc:postgresql://db:5432/smartbudget
+    username: postgres
+    password: 12345
   jpa:
     show-sql: true
 
 jwt:
-  secret: ${JWT_SECRET}
+  secret: secret-key
   expiration: 86400000
