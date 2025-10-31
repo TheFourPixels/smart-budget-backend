@@ -36,9 +36,9 @@ jobs:
         with:
           url: http://localhost:8081/actuator/health
 
-          interval: 5000
+          interval: 10000
 
-          timeout: 90000
+          timeout: 120000
 
       - name: Install Newman and dependencies
         run: npm install -g newman newman-reporter-htmlextra
