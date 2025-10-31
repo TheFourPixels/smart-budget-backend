@@ -5,19 +5,15 @@ spring:
   application:
     name: budget-service
   datasource:
-    url: jdbc:postgresql://localhost:5432/smartbudget
-    username: postgres
-    password: 12345
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
   jpa:
-    hibernate:
-      ddl-auto: update
     show-sql: true
-    properties:
-      hibernate:
-        format_sql: true
+
 
 jwt:
-  secret: secret-key
+  secret: ${JWT_SECRET}
   expiration: 3600000
 
 management:
@@ -28,3 +24,7 @@ management:
   endpoint:
     health:
       show-details: always
+
+logging:
+  level:
+    liquibase: INFO

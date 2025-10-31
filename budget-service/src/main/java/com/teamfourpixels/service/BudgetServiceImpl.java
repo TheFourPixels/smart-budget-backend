@@ -2,6 +2,7 @@ package com.teamfourpixels.service;
 
 import com.teamfourpixels.dto.*;
 import com.teamfourpixels.entity.*;
+import com.teamfourpixels.enums.LimitType;
 import com.teamfourpixels.mapper.BudgetMapper;
 import com.teamfourpixels.repository.BudgetRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -36,7 +37,7 @@ public class BudgetServiceImpl implements BudgetService {
 
     private void validatePercentLimits(CreateBudgetRequest request) {
         BigDecimal percentSum = request.getLimits().stream()
-                .filter(l -> l.getLimitType() == BudgetLimit.LimitType.PERCENT)
+                .filter(l -> l.getLimitType() == LimitType.PERCENT)
                 .map(LimitDto::getLimitValue)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         if (percentSum.compareTo(BigDecimal.valueOf(100)) != 0) {
@@ -46,7 +47,7 @@ public class BudgetServiceImpl implements BudgetService {
 
     private void validateAmountLimits(CreateBudgetRequest request) {
         BigDecimal amountSum = request.getLimits().stream()
-                .filter(l -> l.getLimitType() == BudgetLimit.LimitType.SUM)
+                .filter(l -> l.getLimitType() == LimitType.SUM)
                 .map(LimitDto::getLimitValue)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         if (amountSum.compareTo(request.getTotalIncome()) > 0) {
@@ -55,6 +56,7 @@ public class BudgetServiceImpl implements BudgetService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public BudgetDto getBudget(Long userId, Integer year, Integer month) {
         return budgetRepository.findByUserIdAndYearAndMonth(userId, year, month)
                 .map(budgetMapper::toDto)

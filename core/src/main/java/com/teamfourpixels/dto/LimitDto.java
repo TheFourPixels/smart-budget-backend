@@ -1,6 +1,6 @@
 package com.teamfourpixels.dto;
 
-import com.teamfourpixels.entity.BudgetLimit.LimitType;
+import com.teamfourpixels.enums.LimitType;
 import lombok.Data;
 import java.math.BigDecimal;
 

@@ -1,21 +1,16 @@
-spring:
-  datasource:
-    url: jdbc:postgresql://localhost:5432/smartbudget
-    username: postgres
-    password: 12345
-  jpa:
-    hibernate:
-      ddl-auto: update
-    show-sql: true
-    properties:
-      hibernate:
-        format_sql: true
-  application:
-    name: core-budget-service
-
-jwt:
-  secret: secret-key
-  expiration: 86400000
-
 server:
   port: 8081
+
+spring:
+  application:
+    name: core-budget-service
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+  jpa:
+    show-sql: true
+
+jwt:
+  secret: ${JWT_SECRET}
+  expiration: 86400000

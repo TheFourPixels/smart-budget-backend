@@ -1,5 +1,6 @@
 package com.teamfourpixels.entity;
 
+import com.teamfourpixels.enums.LimitType;
 import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
@@ -31,7 +32,4 @@ public class BudgetLimit {
     @Column(nullable = false, length = 10)
     private LimitType limitType;
 
-    public enum LimitType {
-        PERCENT, SUM
-    }
 }

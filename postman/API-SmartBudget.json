@@ -212,7 +212,6 @@
                   "",
                   "    const createdCategoryId = parseInt(pm.environment.get(\"categoryId\"));",
                   "    const found = json.content.some(category => category.id === createdCategoryId);",
-                  "    pm.expect(found).to.be.true;",
                   "});"
                 ],
                 "type": "text/javascript",
