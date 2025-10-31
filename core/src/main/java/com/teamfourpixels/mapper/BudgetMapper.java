@@ -20,4 +20,18 @@ public interface BudgetMapper {
                 .map(dto -> toLimitEntity(dto, budget))
                 .collect(Collectors.toList());
     }
+
+    default Budget toEntity(CreateBudgetRequest request, Budget existingBudget, Long userId) {
+        existingBudget.setUserId(userId);
+        existingBudget.setYear(request.getYear());
+        existingBudget.setMonth(request.getMonth());
+        existingBudget.setTotalIncome(request.getTotalIncome());
+
+        existingBudget.getLimits().clear();
+        existingBudget.getLimits().addAll(
+                toLimitEntities(request.getLimits(), existingBudget)
+        );
+
+        return existingBudget;
+    }
 }

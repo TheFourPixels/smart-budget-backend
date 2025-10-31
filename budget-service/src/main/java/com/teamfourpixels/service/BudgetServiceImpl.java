@@ -22,36 +22,36 @@ public class BudgetServiceImpl implements BudgetService {
     @Override
     @Transactional
     public BudgetDto createOrUpdateBudget(Long userId, Integer year, Integer month, CreateBudgetRequest request) {
-        BigDecimal percentSum = request.getLimits().stream()
-                .filter(l -> l.getLimitType() == BudgetLimit.LimitType.PERCENT)
-                .map(LimitDto::getLimitValue)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        if (percentSum.compareTo(BigDecimal.valueOf(100)) != 0) {
-            throw new IllegalArgumentException("Сумма процентов лимитов должна равняться 100");
-        }
-
-        BigDecimal amountSum = request.getLimits().stream()
-                .filter(l -> l.getLimitType() == BudgetLimit.LimitType.SUM)
-                .map(LimitDto::getLimitValue)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        if (amountSum.compareTo(request.getTotalIncome()) > 0) {
-            throw new IllegalArgumentException("Сумма абсолютных лимитов не должна превышать общий доход");
-        }
+        validatePercentLimits(request);
+        validateAmountLimits(request);
 
         Budget budget = budgetRepository
                 .findByUserIdAndYearAndMonth(userId, year, month)
                 .orElse(Budget.builder().build());
 
-        budget.setUserId(userId);
-        budget.setYear(year);
-        budget.setMonth(month);
-        budget.setTotalIncome(request.getTotalIncome());
+        Budget updatedBudget = budgetMapper.toEntity(request, budget, userId);
 
-        budget.getLimits().clear();
-        List<BudgetLimit> newLimits = budgetMapper.toLimitEntities(request.getLimits(), budget);
-        budget.getLimits().addAll(newLimits);
+        return budgetMapper.toDto(budgetRepository.save(updatedBudget));
+    }
 
-        return budgetMapper.toDto(budgetRepository.save(budget));
+    private void validatePercentLimits(CreateBudgetRequest request) {
+        BigDecimal percentSum = request.getLimits().stream()
+                .filter(l -> l.getLimitType() == BudgetLimit.LimitType.PERCENT)
+                .map(LimitDto::getLimitValue)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (percentSum.compareTo(BigDecimal.valueOf(100)) != 0) {
+            throw new IllegalArgumentException("Сумма процентов должна быть 100");
+        }
+    }
+
+    private void validateAmountLimits(CreateBudgetRequest request) {
+        BigDecimal amountSum = request.getLimits().stream()
+                .filter(l -> l.getLimitType() == BudgetLimit.LimitType.SUM)
+                .map(LimitDto::getLimitValue)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (amountSum.compareTo(request.getTotalIncome()) > 0) {
+            throw new IllegalArgumentException("Сумма лимитов не должна превышать доход");
+        }
     }
 
     @Override
