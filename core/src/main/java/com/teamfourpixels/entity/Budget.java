@@ -6,7 +6,7 @@ import java.math.BigDecimal;
 import java.util.*;
 
 @Entity
-@Table(name = "budgets")
+@Table(name = "budget")
 @Getter
 @Setter
 @NoArgsConstructor

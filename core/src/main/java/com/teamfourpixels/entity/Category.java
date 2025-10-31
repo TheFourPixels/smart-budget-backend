@@ -4,8 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-// Предполагаем, что system_categories и personal_categories объединены
-@Table(name = "categories")
+@Table(name = "category")
 @Getter
 @Setter
 @NoArgsConstructor
