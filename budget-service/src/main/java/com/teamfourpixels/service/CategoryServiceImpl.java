@@ -7,6 +7,9 @@ import com.teamfourpixels.mapper.CategoryMapper;
 import com.teamfourpixels.repository.CategoryRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,10 +34,10 @@ public class CategoryServiceImpl implements CategoryService {
     }
 
     @Override
-    public List<CategoryDto> getAllCategories(Long userId) {
-        return categoryRepository.findByUserIdOrIsSystem(userId, true).stream()
-                .map(categoryMapper::toDto)
-                .toList();
+    public Page<CategoryDto> getAllCategories(Long userId, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return categoryRepository.findByUserId(userId, pageable)
+                .map(categoryMapper::toDto);
     }
 
     @Override

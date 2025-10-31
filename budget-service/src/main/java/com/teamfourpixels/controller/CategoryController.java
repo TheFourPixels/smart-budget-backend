@@ -4,7 +4,8 @@ import com.teamfourpixels.dto.CategoryDto;
 import com.teamfourpixels.dto.CreateCategoryRequest;
 import com.teamfourpixels.service.CategoryService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
+import org.springframework.data.domain.Page;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,24 +19,27 @@ public class CategoryController {
     private static final Long DUMMY_USER_ID = 1L;
 
     @GetMapping
-    public ResponseEntity<List<CategoryDto>> getAllCategories() {
-        return ResponseEntity.ok(categoryService.getAllCategories(DUMMY_USER_ID));
+    public Page<CategoryDto> getAllCategories(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return categoryService.getAllCategories(DUMMY_USER_ID, page, size);
     }
 
     @PostMapping
-    public ResponseEntity<CategoryDto> createCategory(@RequestBody CreateCategoryRequest request) {
-        return ResponseEntity.created(null).body(categoryService.createCategory(DUMMY_USER_ID, request));
+    @ResponseStatus(HttpStatus.CREATED)
+    public CategoryDto createCategory(@RequestBody CreateCategoryRequest request) {
+        return categoryService.createCategory(DUMMY_USER_ID, request);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<CategoryDto> updateCategory(@PathVariable Long id,
-                                                      @RequestBody CreateCategoryRequest request) {
-        return ResponseEntity.ok(categoryService.updateCategory(DUMMY_USER_ID, id, request));
+    public CategoryDto updateCategory(@PathVariable Long id,
+                                      @RequestBody CreateCategoryRequest request) {
+        return categoryService.updateCategory(DUMMY_USER_ID, id, request);
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteCategory(@PathVariable Long id) {
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteCategory(@PathVariable Long id) {
         categoryService.deleteCategory(DUMMY_USER_ID, id);
-        return ResponseEntity.noContent().build();
     }
 }
