@@ -5,7 +5,7 @@ import com.teamfourpixels.service.BudgetService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -20,51 +20,47 @@ public class BudgetController {
     private static final Long DUMMY_USER_ID = 1L;
 
     @PostMapping
-    public ResponseEntity<BudgetDto> createOrUpdateBudget(
+    public BudgetDto createOrUpdateBudget(
             @Valid @RequestBody CreateBudgetRequest request) {
 
         log.debug("Creating budget for {}/{}, totalIncome: {}, limits: {}",
                 request.getYear(), request.getMonth(),
                 request.getTotalIncome(), request.getLimits());
 
-        BudgetDto budget = budgetService.createOrUpdateBudget(
+        return budgetService.createOrUpdateBudget(
                 DUMMY_USER_ID,
                 request.getYear(),
                 request.getMonth(),
                 request
         );
-
-        return ResponseEntity.ok(budget);
     }
 
     @GetMapping("/{year}/{month}")
-    public ResponseEntity<BudgetDto> getBudget(
+    public BudgetDto getBudget(
             @PathVariable Integer year,
             @PathVariable Integer month) {
-        return ResponseEntity.ok(budgetService.getBudget(DUMMY_USER_ID, year, month));
+        return budgetService.getBudget(DUMMY_USER_ID, year, month);
     }
 
     @DeleteMapping("/{year}/{month}")
-    public ResponseEntity<Void> deleteBudget(
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteBudget(
             @PathVariable Integer year,
             @PathVariable Integer month) {
         budgetService.deleteBudget(DUMMY_USER_ID, year, month);
-        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{year}/{month}/dashboard")
-    public ResponseEntity<DashboardDataDto> getDashboard(
+    public DashboardDataDto getDashboard(
             @PathVariable Integer year,
             @PathVariable Integer month) {
-        DashboardDataDto data = new DashboardDataDto();
         BudgetDto budget = budgetService.getBudget(DUMMY_USER_ID, year, month);
-
+        DashboardDataDto data = new DashboardDataDto();
         data.setBudgetPlan(budget.getTotalIncome());
         data.setTotalSpent(BigDecimal.ZERO);
         data.setRemainingBudget(budget.getTotalIncome().subtract(data.getTotalSpent()));
         data.setYear(year);
         data.setMonth(month);
-
-        return ResponseEntity.ok(data);
+        return data;
     }
 }
