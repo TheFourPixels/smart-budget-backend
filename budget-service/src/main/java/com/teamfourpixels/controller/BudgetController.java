@@ -2,7 +2,9 @@ package com.teamfourpixels.controller;
 
 import com.teamfourpixels.dto.*;
 import com.teamfourpixels.service.BudgetService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -11,26 +13,34 @@ import java.math.BigDecimal;
 @RestController
 @RequestMapping("/api/v1/budgets")
 @RequiredArgsConstructor
+@Slf4j
 public class BudgetController {
 
     private final BudgetService budgetService;
     private static final Long DUMMY_USER_ID = 1L;
 
-    @PostMapping("/{year}/{month}")
+    @PostMapping
     public ResponseEntity<BudgetDto> createOrUpdateBudget(
-            @PathVariable Integer year,
-            @PathVariable Integer month,
-            @RequestBody CreateBudgetRequest request) {
-        System.out.println("Received year: " + year + ", month: " + month + ", totalIncome: " + request.getTotalIncome());
-        System.out.println("Limits: " + request.getLimits());
-        return ResponseEntity.ok(budgetService.createOrUpdateBudget(DUMMY_USER_ID, year, month, request));
+            @Valid @RequestBody CreateBudgetRequest request) {
+
+        log.debug("Creating budget for {}/{}, totalIncome: {}, limits: {}",
+                request.getYear(), request.getMonth(),
+                request.getTotalIncome(), request.getLimits());
+
+        BudgetDto budget = budgetService.createOrUpdateBudget(
+                DUMMY_USER_ID,
+                request.getYear(),
+                request.getMonth(),
+                request
+        );
+
+        return ResponseEntity.ok(budget);
     }
 
     @GetMapping("/{year}/{month}")
     public ResponseEntity<BudgetDto> getBudget(
             @PathVariable Integer year,
             @PathVariable Integer month) {
-        Integer time = convertToTime(year, month);
         return ResponseEntity.ok(budgetService.getBudget(DUMMY_USER_ID, year, month));
     }
 
@@ -38,7 +48,6 @@ public class BudgetController {
     public ResponseEntity<Void> deleteBudget(
             @PathVariable Integer year,
             @PathVariable Integer month) {
-        Integer time = convertToTime(year, month);
         budgetService.deleteBudget(DUMMY_USER_ID, year, month);
         return ResponseEntity.noContent().build();
     }
@@ -47,7 +56,6 @@ public class BudgetController {
     public ResponseEntity<DashboardDataDto> getDashboard(
             @PathVariable Integer year,
             @PathVariable Integer month) {
-        Integer time = convertToTime(year, month);
         DashboardDataDto data = new DashboardDataDto();
         BudgetDto budget = budgetService.getBudget(DUMMY_USER_ID, year, month);
 
@@ -58,12 +66,5 @@ public class BudgetController {
         data.setMonth(month);
 
         return ResponseEntity.ok(data);
-    }
-
-    private Integer convertToTime(Integer year, Integer month) {
-        if (year == null || month == null || month < 1 || month > 12) {
-            throw new IllegalArgumentException("Некорректный год или месяц.");
-        }
-        return year * 100 + month;
     }
 }

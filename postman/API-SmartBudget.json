@@ -12,6 +12,23 @@
       "item": [
         {
           "name": "Создать или обновить бюджет на период",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"year\": 2025,\n  \"month\": 10,\n  \"totalIncome\": 100000.00,\n  \"limits\": [\n    {\"categoryId\": 1, \"limitValue\": 50.00, \"limitType\": \"PERCENT\"},\n    {\"categoryId\": 2, \"limitValue\": 50.00, \"limitType\": \"PERCENT\"}\n  ]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/budgets",
+              "host": ["{{baseUrl}}"],
+              "path": ["budgets"]
+            }
+          },
           "event": [
             {
               "listen": "test",
@@ -19,49 +36,23 @@
                 "exec": [
                   "pm.test(\"Budget created or updated successfully\", function () {",
                   "    pm.response.to.have.status(200);",
-                  "    pm.expect(pm.response.json().year).to.equal(2025);",
-                  "    pm.expect(pm.response.json().month).to.equal(10);",
-                  "    pm.expect(pm.response.json().totalIncome).to.equal(100000.00);",
-                  "    pm.expect(pm.response.json().limits.length).to.equal(2);",
-                  "    pm.expect(pm.response.json().limits[0].categoryId).to.equal(1);",
-                  "    pm.expect(pm.response.json().limits[0].limitValue).to.equal(50.00);",
-                  "    pm.expect(pm.response.json().limits[0].limitType).to.equal(\"PERCENT\");",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.year).to.equal(2025);",
+                  "    pm.expect(json.month).to.equal(10);",
+                  "    pm.expect(json.totalIncome).to.equal(100000.00);",
+                  "    pm.expect(json.limits.length).to.equal(2);",
+                  "    pm.expect(json.limits[0].categoryId).to.equal(1);",
+                  "    pm.expect(json.limits[0].limitValue).to.equal(50.00);",
+                  "    pm.expect(json.limits[0].limitType).to.equal(\"PERCENT\");",
+                  "    pm.expect(json.limits[1].categoryId).to.equal(2);",
+                  "    pm.expect(json.limits[1].limitValue).to.equal(50.00);",
+                  "    pm.expect(json.limits[1].limitType).to.equal(\"PERCENT\");",
                   "});"
                 ],
-                "type": "text/javascript",
-                "packages": {}
+                "type": "text/javascript"
               }
             }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"totalIncome\": 100000.00,\n  \"limits\": [\n    {\"categoryId\": 1, \"limitValue\": 50.00, \"limitType\": \"PERCENT\"},\n    {\"categoryId\": 2, \"limitValue\": 50.00, \"limitType\": \"PERCENT\"}\n  ]\n}",
-              "options": {
-                "raw": {
-                  "headerFamily": "json",
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{baseUrl}}/budgets/2025/10",
-              "host": ["{{baseUrl}}"],
-              "path": ["budgets", "2025", "10"]
-            }
-          },
-          "response": []
+          ]
         },
         {
           "name": "Получить бюджет и лимиты на период",
