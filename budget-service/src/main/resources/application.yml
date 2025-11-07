@@ -10,6 +10,10 @@ spring:
     password: 12345
   jpa:
     show-sql: true
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate.format_sql: true
 
 jwt:
   secret: secret-key

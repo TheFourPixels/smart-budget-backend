@@ -1,9 +1,9 @@
-FROM openjdk:21-jdk AS builder
+FROM eclipse-temurin:21-jdk-jammy AS builder
 
 WORKDIR /app
 COPY target/budget-service-1.0-SNAPSHOT.jar app.jar
 RUN java -Djarmode=layertools -jar app.jar extract
-FROM openjdk:21-jdk
+FROM eclipse-temurin:21-jdk-jammy
 WORKDIR /app
 
 COPY --from=builder /app/dependencies/ ./
