@@ -30,9 +30,14 @@ public class BudgetServiceImpl implements BudgetService {
                 .findByUserIdAndYearAndMonth(userId, year, month)
                 .orElse(Budget.builder().build());
 
-        Budget updatedBudget = budgetMapper.toEntity(request, budget, userId);
+        budgetMapper.updateBudgetFields(budget, request, userId, year, month);
 
-        return budgetMapper.toDto(budgetRepository.save(updatedBudget));
+        budget.getLimits().clear();
+
+        List<BudgetLimit> newLimits = budgetMapper.toLimitEntities(request.getLimits(), budget);
+        budget.getLimits().addAll(newLimits);
+
+        return budgetMapper.toDto(budgetRepository.save(budget));
     }
 
     private void validatePercentLimits(CreateBudgetRequest request) {
