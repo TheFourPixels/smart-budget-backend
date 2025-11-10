@@ -8,8 +8,12 @@ import java.util.stream.Collectors;
 
 @Mapper(componentModel = "spring")
 public interface BudgetMapper {
-
     BudgetDto toDto(Budget entity);
+
+    @Mapping(target = "totalIncome", source = "request.totalIncome")
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "limits", ignore = true)
+    void updateBudgetFields(@MappingTarget Budget budget, CreateBudgetRequest request, Long userId, Integer year, Integer month);
 
     default List<BudgetLimit> toLimitEntities(List<LimitDto> limitDtos, Budget budget) {
         return limitDtos.stream()
@@ -20,12 +24,5 @@ public interface BudgetMapper {
                         .limitType(dto.getLimitType())
                         .build())
                 .collect(Collectors.toList());
-    }
-
-    default void updateBudgetFields(Budget budget, CreateBudgetRequest request, Long userId, Integer year, Integer month) {
-        budget.setUserId(userId);
-        budget.setYear(year);
-        budget.setMonth(month);
-        budget.setTotalIncome(request.getTotalIncome());
     }
 }

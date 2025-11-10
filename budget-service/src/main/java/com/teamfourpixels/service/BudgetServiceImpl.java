@@ -40,6 +40,20 @@ public class BudgetServiceImpl implements BudgetService {
         return budgetMapper.toDto(budgetRepository.save(budget));
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public BudgetDto getBudget(Long userId, Integer year, Integer month) {
+        return budgetRepository.findByUserIdAndYearAndMonth(userId, year, month)
+                .map(budgetMapper::toDto)
+                .orElseThrow(() -> new EntityNotFoundException("Бюджет не найден"));
+    }
+
+    @Override
+    @Transactional
+    public void deleteBudget(Long userId, Integer year, Integer month) {
+        budgetRepository.deleteByUserIdAndYearAndMonth(userId, year, month);
+    }
+
     private void validatePercentLimits(CreateBudgetRequest request) {
         BigDecimal percentSum = request.getLimits().stream()
                 .filter(l -> l.getLimitType() == LimitType.PERCENT)
@@ -58,19 +72,5 @@ public class BudgetServiceImpl implements BudgetService {
         if (amountSum.compareTo(request.getTotalIncome()) > 0) {
             throw new IllegalArgumentException("Сумма лимитов не должна превышать доход");
         }
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public BudgetDto getBudget(Long userId, Integer year, Integer month) {
-        return budgetRepository.findByUserIdAndYearAndMonth(userId, year, month)
-                .map(budgetMapper::toDto)
-                .orElseThrow(() -> new EntityNotFoundException("Бюджет не найден"));
-    }
-
-    @Override
-    @Transactional
-    public void deleteBudget(Long userId, Integer year, Integer month) {
-        budgetRepository.deleteByUserIdAndYearAndMonth(userId, year, month);
     }
 }
