@@ -1,0 +1,70 @@
+name: CI & API Tests
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+jobs:
+  api_tests:
+    runs-on: ubuntu-latest
+
+#    env:
+#      DB_USER: postgres
+#      DB_PASSWORD: 12345
+#      DB_PORT: 5432
+#      DB_NAME: smartbudget
+#      JWT_SECRET: secret-key
+#
+#      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/smartbudget
+#      SPRING_DATASOURCE_USERNAME: postgres
+#      SPRING_DATASOURCE_PASSWORD: 12345
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21 and Cache Maven Dependencies
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build Project (Quiet Mode)
+        run: mvn -B package --file pom.xml -DskipTests -q
+
+      - name: Start Services (DB and Spring Apps)
+        run: docker compose up -d --build
+
+      - name: Wait for Budget Service to be healthy
+        uses: nev7n/wait_for_response@v1
+        with:
+          url: http://localhost:8081/actuator/health
+
+          interval: 10000
+
+          timeout: 120000
+
+      - name: Install Newman and dependencies
+        run: npm install -g newman newman-reporter-htmlextra
+
+      - name: Run Postman Collection via Newman
+        run: |
+          newman run postman/API-SmartBudget.json \
+            -e postman/CI_CD_Environment.json \
+            --env-var "baseUrl=http://localhost:8081/api/v1" \
+            --reporters cli
+          
+      - name: Dump Docker Logs on Failure
+        if: always()
+        run: docker compose logs
+
+      - name: Stop Services
+        if: always()
+        run: docker compose down

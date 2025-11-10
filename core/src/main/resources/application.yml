@@ -1,0 +1,16 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: core
+  datasource:
+    url: jdbc:postgresql://db:5432/smartbudget
+    username: postgres
+    password: 12345
+  jpa:
+    show-sql: true
+
+jwt:
+  secret: secret-key
+  expiration: 86400000
