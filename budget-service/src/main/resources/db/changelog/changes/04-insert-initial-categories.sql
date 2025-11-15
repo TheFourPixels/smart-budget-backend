@@ -9,7 +9,8 @@ VALUES
     (7, 0, 'Красота', TRUE),
     (8, 0, 'Коммунальные услуги', TRUE),
     (9, 0, 'Образование', TRUE),
-    (10, 0, 'Рестораны', TRUE)
+    (10, 0, 'Рестораны', TRUE),
+    (999, 0, 'Не распределено', TRUE)
 ON CONFLICT (id) DO NOTHING;
 
 SELECT setval('categories_id_seq', (SELECT MAX(id) + 1 FROM categories));

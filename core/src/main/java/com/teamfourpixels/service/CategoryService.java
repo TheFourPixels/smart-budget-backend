@@ -9,4 +9,5 @@ public interface CategoryService {
     Page<CategoryDto> getAllCategories(Long userId, int page, int size);
     CategoryDto updateCategory(Long userId, Long id, CreateCategoryRequest request);
     void deleteCategory(Long userId, Long id);
+    CategoryDto getCategoryById(Long categoryId);
 }
