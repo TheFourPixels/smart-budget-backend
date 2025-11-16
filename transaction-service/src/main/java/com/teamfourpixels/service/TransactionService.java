@@ -21,7 +21,7 @@ import java.util.List;
 public class TransactionService {
     private final TransactionRepository repository;
     private final TransactionMapper mapper;
-    private final MockBankWebClient mockBankWebClient;
+    private final BankServiceClient bankServiceClient;
 
     @Transactional(readOnly = true)
     public Page<TransactionDto> getTransactionsPage(Long userId, int page, int size,
@@ -42,7 +42,7 @@ public class TransactionService {
 
     @Transactional
     public int importAndClassifyTransactions(Long userId, int year, int month) {
-        List<TransactionDto> bankTransactions = mockBankWebClient.fetchTransactions(year, month);
+        List<TransactionDto> bankTransactions = bankServiceClient.fetchTransactions(year, month);
         int newCount = 0;
         for (TransactionDto bankDto : bankTransactions) {
             if (repository.findByUserIdAndBankTransactionRefId(userId, bankDto.getExternal_id()).isPresent()) {

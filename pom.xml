@@ -12,6 +12,7 @@
         <module>core</module>
         <module>budget-service</module>
         <module>transaction-service</module>
+        <module>bank-service</module>
     </modules>
 
     <properties>

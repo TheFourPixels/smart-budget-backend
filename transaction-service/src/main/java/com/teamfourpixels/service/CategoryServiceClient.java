@@ -3,22 +3,25 @@ package com.teamfourpixels.service;
 import com.teamfourpixels.dto.CategoryDto;
 import com.teamfourpixels.dto.CreateCategoryRequest;
 import jakarta.persistence.EntityNotFoundException;
-import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Primary;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.beans.factory.annotation.Qualifier;
 
 import java.util.Collections;
 
 @Service
 @Primary
-@RequiredArgsConstructor
 public class CategoryServiceClient implements CategoryService {
 
-    private final WebClient webClient; // Внедряем WebClient (настроенный в ClientConfig)
+    private final WebClient webClient;
+
+    public CategoryServiceClient(@Qualifier("budgetWebClient") WebClient webClient) {
+        this.webClient = webClient;
+    }
 
     @Override
     public CategoryDto getCategoryById(Long categoryId) {

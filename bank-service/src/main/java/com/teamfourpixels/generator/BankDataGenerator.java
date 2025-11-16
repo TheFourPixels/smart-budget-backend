@@ -1,9 +1,8 @@
-package com.teamfourpixels.service;
+package com.teamfourpixels.generator;
 
 import com.teamfourpixels.dto.CategoryDto;
 import com.teamfourpixels.dto.TransactionDto;
 import org.springframework.stereotype.Component;
-
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -14,7 +13,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 @Component
-public class MockBankWebClient {
+public class BankDataGenerator {
 
     private static class TransactionTemplate {
         final BigDecimal amount;
@@ -35,34 +34,25 @@ public class MockBankWebClient {
     }
 
     private static final List<TransactionTemplate> TRANSACTION_TEMPLATES = List.of(
-            // 1. Расходы: Продукты (MCC 5411)
-            new TransactionTemplate(new BigDecimal("-4500.25"), "Супермаркет 'Лента'", "5411", "Еженедельная закупка продуктов",
-                    1L, "Продукты (Банк)"),
-            // 2. Доходы: Зарплата (Нет MCC)
-            new TransactionTemplate(new BigDecimal("95000.00"), "Работодатель ООО", null, "Зарплата за текущий месяц",
-                    1L, "Зачисления (Банк)"),
-            // 3. Расходы: Кафе/Рестораны (MCC 5812)
-            new TransactionTemplate(new BigDecimal("-1250.00"), "Ресторан 'Уют'", "5812", "Ужин с друзьями",
-                    1L, "Общепит (Банк)"),
-            // 4. Расходы: Коммунальные услуги (MCC 4900)
-            new TransactionTemplate(new BigDecimal("-3200.00"), "МосЭнергоСбыт", "4900", "Оплата электроэнергии",
-                    1L, "ЖКХ (Банк)"),
-            // 5. Расходы: Топливо (MCC 5541)
-            new TransactionTemplate(new BigDecimal("-2100.00"), "АЗС Лукойл", "5541", "Бензин АИ-95",
-                    1L, "Топливо (Банк)"),
-            // 6. Расходы: Одежда (MCC 5651)
-            new TransactionTemplate(new BigDecimal("-7999.00"), "Zara Store", "5651", "Покупка рубашки",
-                    1L, "Одежда (Банк)"),
-            // 7. Расходы: Перевод (Нет MCC)
-            new TransactionTemplate(new BigDecimal("-5000.00"), "Перевод Другу", null, "Перевод долга",
-                    1L, "Переводы (Банк)")
+            // 1. Продукты (MCC 5411)
+            new TransactionTemplate(new BigDecimal("-4500.25"), "Супермаркет 'Лента'", "5411", "Еженедельная закупка продуктов", 1L, "Продукты (Банк)"),
+            // 2. Зарплата (Доход)
+            new TransactionTemplate(new BigDecimal("95000.00"), "Работодатель ООО", null, "Зарплата за текущий месяц", 2L, "Зачисления (Банк)"),
+            // 3. Кафе/Рестораны (MCC 5812)
+            new TransactionTemplate(new BigDecimal("-1250.00"), "Ресторан 'Уют'", "5812", "Ужин с друзьями", 3L, "Общепит (Банк)"),
+            // 4. Коммунальные услуги (MCC 4900)
+            new TransactionTemplate(new BigDecimal("-3200.00"), "МосЭнергоСбыт", "4900", "Оплата электроэнергии", 4L, "ЖКХ (Банк)"),
+            // 5. Топливо (MCC 5541)
+            new TransactionTemplate(new BigDecimal("-2100.00"), "АЗС Лукойл", "5541", "Бензин АИ-95", 5L, "Топливо (Банк)"),
+            // 6. Одежда (MCC 5651)
+            new TransactionTemplate(new BigDecimal("-7999.00"), "Zara Store", "5651", "Покупка рубашки", 6L, "Одежда (Банк)"),
+            // 7. Перевод (Расход)
+            new TransactionTemplate(new BigDecimal("-5000.00"), "Перевод Другу", null, "Перевод долга", 7L, "Переводы (Банк)")
     );
 
     public List<TransactionDto> fetchTransactions(int year, int month) {
-
         ZonedDateTime startOfMonth = ZonedDateTime.of(year, month, 1, 0, 0, 0, 0, ZoneOffset.UTC);
         Instant baseDate = startOfMonth.toInstant();
-
         long maxDays = 28;
 
         return IntStream.range(0, TRANSACTION_TEMPLATES.size())
@@ -91,6 +81,7 @@ public class MockBankWebClient {
                 .category(CategoryDto.builder()
                         .id(template.bankCategoryId)
                         .name(template.bankCategoryName)
+                        .isSystem(false)
                         .build())
                 .parent_transaction_id(null)
                 .build();
