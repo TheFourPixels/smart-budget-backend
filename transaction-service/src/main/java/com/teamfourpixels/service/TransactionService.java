@@ -1,4 +1,5 @@
 package com.teamfourpixels.service;
+
 import com.teamfourpixels.dto.*;
 import com.teamfourpixels.entity.Transaction;
 import com.teamfourpixels.enums.OperationType;
@@ -35,6 +36,7 @@ public class TransactionService {
         Page<Transaction> pageResult = repository.findAll(spec, pageable);
         return pageResult.map(mapper::toDto);
     }
+
     @Transactional(readOnly = true)
     public TransactionDto getTransactionDetails(Long userId, Long id) {
         return mapper.toDto(getByIdAndUser(id, userId));
@@ -56,6 +58,7 @@ public class TransactionService {
         }
         return newCount;
     }
+
     private Transaction convertBankDtoToTransaction(Long userId, TransactionDto bankDto) {
         BigDecimal absAmount = bankDto.getAmount().abs().setScale(2, RoundingMode.HALF_UP);
         OperationType type = bankDto.getAmount().signum() >= 0 ? OperationType.INCOME : OperationType.EXPENSE;
@@ -67,7 +70,6 @@ public class TransactionService {
                 .mcc(bankDto.getMcc())
                 .merchant(bankDto.getMerchant_name())
                 .description(bankDto.getDescription())
-                .isSplit(false)
                 .bankTransactionRefId(bankDto.getExternal_id())
                 .build();
     }
@@ -95,34 +97,6 @@ public class TransactionService {
     }
 
     @Transactional
-    public List<TransactionDto> splitTransaction(Long userId, Long originalId, List<SplitPartDto> parts) {
-        Transaction original = getByIdAndUser(originalId, userId);
-        if (parts.isEmpty()) throw new IllegalArgumentException("Должна быть хотя бы одна часть");
-        BigDecimal sum = parts.stream().map(SplitPartDto::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
-        if (sum.compareTo(original.getAmount()) != 0) {
-            throw new IllegalArgumentException("Сумма частей не совпадает");
-        }
-        List<Transaction> newParts = new ArrayList<>();
-        for (SplitPartDto p : parts) {
-            Transaction part = Transaction.builder()
-                    .userId(userId)
-                    .transactionTime(original.getTransactionTime())
-                    .amount(p.getAmount())
-                    .type(original.getType())
-                    .mcc(original.getMcc())
-                    .merchant(original.getMerchant())
-                    .categoryId(p.getCategoryId() != null ? p.getCategoryId() : 999L)
-                    .description(p.getDescription() != null ? p.getDescription() : original.getDescription())
-                    .isSplit(true)
-                    .originalTransactionId(originalId)
-                    .bankTransactionRefId(original.getBankTransactionRefId())
-                    .build();
-            newParts.add(part);
-        }
-        repository.delete(original);
-        return mapper.toDtoList(repository.saveAll(newParts));
-    }
-    @Transactional
     public TransactionDto updateTransactionCategory(Long userId, Long id, Long categoryId) {
         Transaction t = getByIdAndUser(id, userId);
         t.setCategoryId(categoryId);
@@ -133,11 +107,13 @@ public class TransactionService {
                 .filter(t -> t.getUserId().equals(userId))
                 .orElseThrow(() -> new EntityNotFoundException("Транзакция не найдена"));
     }
+
     @Transactional
     public TransactionDto createTransaction(Long userId, CreateTransactionRequest request) {
         Transaction t = mapper.toEntity(request, userId);
         return mapper.toDto(repository.save(t));
     }
+
     @Transactional
     public TransactionDto updateTransaction(Long userId, Long id, CreateTransactionRequest request) {
         Transaction t = getByIdAndUser(id, userId);

@@ -14,16 +14,12 @@ public abstract class TransactionMapper {
     @Mapping(target = "external_id", source = "bankTransactionRefId")
     @Mapping(target = "transaction_date", source = "transactionTime")
     @Mapping(target = "merchant_name", source = "merchant")
-    @Mapping(target = "parent_transaction_id", source = "originalTransactionId")
     @Mapping(target = "category", source = "categoryId", qualifiedByName = "mapCategory")
     public abstract TransactionDto toDto(Transaction entity);
 
     public abstract List<TransactionDto> toDtoList(List<Transaction> entities);
 
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "userId", source = "userId")
-    @Mapping(target = "isSplit", constant = "false")
-    @Mapping(target = "originalTransactionId", ignore = true)
     @Mapping(target = "bankTransactionRefId", constant = "null")
     @Mapping(target = "categoryId", source = "request.categoryId", defaultValue = "999L")
     public abstract Transaction toEntity(CreateTransactionRequest request, Long userId);
@@ -31,8 +27,6 @@ public abstract class TransactionMapper {
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "userId", ignore = true)
     @Mapping(target = "bankTransactionRefId", ignore = true)
-    @Mapping(target = "originalTransactionId", ignore = true)
-    @Mapping(target = "isSplit", ignore = true)
     @Mapping(target = "type", ignore = true)
     public abstract void updateEntity(CreateTransactionRequest request, @MappingTarget Transaction entity);
 

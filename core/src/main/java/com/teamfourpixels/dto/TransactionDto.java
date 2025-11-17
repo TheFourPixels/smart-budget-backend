@@ -1,5 +1,6 @@
 package com.teamfourpixels.dto;
 
+import com.teamfourpixels.enums.OperationType;
 import lombok.Builder;
 import lombok.Data;
 import java.math.BigDecimal;
@@ -10,11 +11,11 @@ import java.time.Instant;
 public class TransactionDto {
     private Long id;
     private BigDecimal amount;
+    private OperationType type;
     private String external_id;
     private Instant transaction_date;
     private String description;
     private String merchant_name;
     private String mcc;
     private CategoryDto category;
-    private Long parent_transaction_id;
 }

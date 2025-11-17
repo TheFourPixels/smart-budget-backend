@@ -8,7 +8,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
-import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -55,12 +54,6 @@ public class TransactionController {
         Long categoryId = body.get("categoryId");
         if (categoryId == null) throw new IllegalArgumentException("categoryId required");
         return service.updateTransactionCategory(DUMMY_USER_ID, id, categoryId);
-    }
-
-    @PostMapping("/{id}/split")
-    public List<TransactionDto> split(@PathVariable Long id,
-                                      @RequestBody List<SplitPartDto> parts) {
-        return service.splitTransaction(DUMMY_USER_ID, id, parts);
     }
 
     @GetMapping("/{id}")

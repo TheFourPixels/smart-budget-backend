@@ -9,11 +9,7 @@ CREATE TABLE transactions (
     merchant VARCHAR(255),
     category_id BIGINT NOT NULL,
     description VARCHAR(500),
-    is_split BOOLEAN NOT NULL DEFAULT FALSE,
-    original_transaction_id BIGINT,
-    bank_transaction_ref_id VARCHAR(100) UNIQUE,
-
-    CONSTRAINT fk_original_transaction FOREIGN KEY (original_transaction_id) REFERENCES transactions(id)
+    bank_transaction_ref_id VARCHAR(100) UNIQUE
 );
 
 CREATE INDEX idx_transactions_user_time ON transactions (user_id, transaction_time DESC);

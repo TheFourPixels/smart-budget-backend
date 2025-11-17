@@ -9,29 +9,10 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 @Component
 public class BankDataGenerator {
-
-    private static class TransactionTemplate {
-        final BigDecimal amount;
-        final String merchantName;
-        final String mcc;
-        final String description;
-        final Long bankCategoryId;
-        final String bankCategoryName;
-
-        TransactionTemplate(BigDecimal amount, String merchantName, String mcc, String description, Long bankCategoryId, String bankCategoryName) {
-            this.amount = amount;
-            this.merchantName = merchantName;
-            this.mcc = mcc;
-            this.description = description;
-            this.bankCategoryId = bankCategoryId;
-            this.bankCategoryName = bankCategoryName;
-        }
-    }
 
     private static final List<TransactionTemplate> TRANSACTION_TEMPLATES = List.of(
             // 1. Продукты (MCC 5411)
@@ -57,7 +38,7 @@ public class BankDataGenerator {
 
         return IntStream.range(0, TRANSACTION_TEMPLATES.size())
                 .mapToObj(i -> generateMockTransaction(i, baseDate, maxDays, TRANSACTION_TEMPLATES.get(i)))
-                .collect(Collectors.toList());
+                .toList();
     }
 
     private TransactionDto generateMockTransaction(int index, Instant baseDate, long maxDays, TransactionTemplate template) {
@@ -83,7 +64,6 @@ public class BankDataGenerator {
                         .name(template.bankCategoryName)
                         .isSystem(false)
                         .build())
-                .parent_transaction_id(null)
                 .build();
     }
 }

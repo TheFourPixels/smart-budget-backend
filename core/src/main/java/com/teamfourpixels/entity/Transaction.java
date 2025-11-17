@@ -44,12 +44,6 @@ public class Transaction {
     @Column(length = 500)
     private String description;
 
-    @Column(nullable = false)
-    private Boolean isSplit = false;
-
-    @Column
-    private Long originalTransactionId;
-
     @Column(name = "bank_transaction_ref_id", unique = true)
     private String bankTransactionRefId;
 }
