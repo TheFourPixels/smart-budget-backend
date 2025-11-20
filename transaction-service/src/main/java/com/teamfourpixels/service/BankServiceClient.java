@@ -1,22 +1,19 @@
 package com.teamfourpixels.service;
 
 import com.teamfourpixels.dto.TransactionDto;
-import org.springframework.beans.factory.annotation.Qualifier;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class BankServiceClient {
 
-    private final WebClient webClient;
-
-    public BankServiceClient(@Qualifier("bankWebClient") WebClient webClient) {
-        this.webClient = webClient;
-    }
+    private final WebClient bankWebClient;
 
     public List<TransactionDto> fetchTransactions(int year, int month) {
-        return webClient.get()
+        return bankWebClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .path("/bank/transactions")
                         .queryParam("year", year)

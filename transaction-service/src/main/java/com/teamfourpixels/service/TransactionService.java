@@ -1,10 +1,12 @@
 package com.teamfourpixels.service;
 
-import com.teamfourpixels.dto.*;
+import com.teamfourpixels.dto.CreateTransactionRequest;
+import com.teamfourpixels.dto.TransactionDto;
 import com.teamfourpixels.entity.Transaction;
 import com.teamfourpixels.enums.OperationType;
 import com.teamfourpixels.mapper.TransactionMapper;
 import com.teamfourpixels.repository.TransactionRepository;
+import com.teamfourpixels.service.classification.ClassificationStrategy;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
@@ -14,8 +16,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -24,14 +26,17 @@ public class TransactionService {
     private final TransactionMapper mapper;
     private final BankServiceClient bankServiceClient;
 
+    private final List<ClassificationStrategy> classificationStrategies;
+
+    private static final Long UNCATEGORIZED_ID = 999L;
+
     @Transactional(readOnly = true)
     public Page<TransactionDto> getTransactionsPage(Long userId, int page, int size,
                                                     Long categoryId, String query,
                                                     Instant start, Instant end) {
-        Specification<Transaction> spec = Specification.where(TransactionSpecs.hasUserId(userId))
-                .and(TransactionSpecs.betweenDates(start, end));
-        if (categoryId != null) spec = spec.and(TransactionSpecs.hasCategoryId(categoryId));
-        if (query != null && !query.isBlank()) spec = spec.and(TransactionSpecs.merchantOrDescriptionContains(query));
+        Specification<Transaction> spec = new TransactionFilterSpecification(
+                userId, categoryId, query, start, end);
+
         Pageable pageable = PageRequest.of(page, size, Sort.by("transactionTime").descending());
         Page<Transaction> pageResult = repository.findAll(spec, pageable);
         return pageResult.map(mapper::toDto);
@@ -47,10 +52,11 @@ public class TransactionService {
         List<TransactionDto> bankTransactions = bankServiceClient.fetchTransactions(year, month);
         int newCount = 0;
         for (TransactionDto bankDto : bankTransactions) {
-            if (repository.findByUserIdAndBankTransactionRefId(userId, bankDto.getExternal_id()).isPresent()) {
+            if (repository.findByUserIdAndBankTransactionRefId(userId, bankDto.getExternalId()).isPresent()) {
                 continue;
             }
             Transaction transaction = convertBankDtoToTransaction(userId, bankDto);
+
             Long categoryId = autoClassify(transaction);
             transaction.setCategoryId(categoryId);
             repository.save(transaction);
@@ -64,36 +70,24 @@ public class TransactionService {
         OperationType type = bankDto.getAmount().signum() >= 0 ? OperationType.INCOME : OperationType.EXPENSE;
         return Transaction.builder()
                 .userId(userId)
-                .transactionTime(bankDto.getTransaction_date())
+                .transactionTime(bankDto.getTransactionDate())
                 .amount(absAmount)
                 .type(type)
                 .mcc(bankDto.getMcc())
-                .merchant(bankDto.getMerchant_name())
+                .merchant(bankDto.getMerchantName())
                 .description(bankDto.getDescription())
-                .bankTransactionRefId(bankDto.getExternal_id())
+                .bankTransactionRefId(bankDto.getExternalId())
                 .build();
     }
 
     private Long autoClassify(Transaction t) {
-        String mcc = t.getMcc();
-        String merchant = t.getMerchant();
-
-        if (mcc != null) {
-            return switch (mcc) {
-                case "5411" -> 1L;   // Продукты
-                case "5812" -> 10L;  // Рестораны
-                case "4900" -> 8L;   // Коммунальные
-                case "5541" -> 4L;   // Проезд
-                case "5651" -> 3L;   // Одежда
-                default -> 999L;
-            };
+        for (ClassificationStrategy strategy : classificationStrategies) {
+            Optional<Long> categoryId = strategy.classify(t);
+            if (categoryId.isPresent()) {
+                return categoryId.get();
+            }
         }
-
-        if (merchant != null && merchant.contains("Зарплата")) {
-            return 1L;
-        }
-
-        return 999L;
+        return UNCATEGORIZED_ID;
     }
 
     @Transactional

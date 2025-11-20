@@ -3,21 +3,26 @@ package com.teamfourpixels.mapper;
 import com.teamfourpixels.dto.*;
 import com.teamfourpixels.entity.Transaction;
 import org.mapstruct.*;
+import com.teamfourpixels.enums.OperationType;
 
-import java.util.List;
+import java.math.BigDecimal;
 
 @Mapper(componentModel = "spring")
 public abstract class TransactionMapper {
 
-
-    @Mapping(target = "amount", expression = "java(entity.getType() == com.teamfourpixels.enums.OperationType.EXPENSE ? entity.getAmount().negate() : entity.getAmount())")
-    @Mapping(target = "external_id", source = "bankTransactionRefId")
-    @Mapping(target = "transaction_date", source = "transactionTime")
-    @Mapping(target = "merchant_name", source = "merchant")
+    @Mapping(target = "amount", source = "entity")
+    @Mapping(target = "externalId", source = "bankTransactionRefId")
+    @Mapping(target = "transactionDate", source = "transactionTime")
+    @Mapping(target = "merchantName", source = "merchant")
     @Mapping(target = "category", source = "categoryId", qualifiedByName = "mapCategory")
     public abstract TransactionDto toDto(Transaction entity);
 
-    public abstract List<TransactionDto> toDtoList(List<Transaction> entities);
+    protected BigDecimal mapAmount(Transaction entity) {
+        if (entity.getType() == OperationType.EXPENSE) {
+            return entity.getAmount().negate();
+        }
+        return entity.getAmount();
+    }
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "bankTransactionRefId", constant = "null")

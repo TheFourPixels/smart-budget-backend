@@ -15,6 +15,12 @@ spring:
     properties:
       hibernate.format_sql: true
 
+service:
+  budget:
+    base-url: ${BUDGET_SERVICE_URL:http://budget-service:8081/api/v1}
+  bank:
+    base-url: ${BANK_SERVICE_URL:http://bank-service:8085/api/v1}
+
 jwt:
   secret: secret-key
   expiration: 3600000

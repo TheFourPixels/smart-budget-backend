@@ -12,10 +12,10 @@ public class TransactionDto {
     private Long id;
     private BigDecimal amount;
     private OperationType type;
-    private String external_id;
-    private Instant transaction_date;
+    private String externalId;
+    private Instant transactionDate;
     private String description;
-    private String merchant_name;
+    private String merchantName;
     private String mcc;
     private CategoryDto category;
 }

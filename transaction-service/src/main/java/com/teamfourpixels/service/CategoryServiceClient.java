@@ -1,27 +1,17 @@
 package com.teamfourpixels.service;
 
 import com.teamfourpixels.dto.CategoryDto;
-import com.teamfourpixels.dto.CreateCategoryRequest;
 import jakarta.persistence.EntityNotFoundException;
-import org.springframework.context.annotation.Primary;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.beans.factory.annotation.Qualifier;
-
-import java.util.Collections;
 
 @Service
-@Primary
-public class CategoryServiceClient implements CategoryService {
+@RequiredArgsConstructor
+public class CategoryServiceClient implements CategoryQueryService {
 
-    private final WebClient webClient;
-
-    public CategoryServiceClient(@Qualifier("budgetWebClient") WebClient webClient) {
-        this.webClient = webClient;
-    }
+    private final WebClient budgetWebClient;
 
     @Override
     public CategoryDto getCategoryById(Long categoryId) {
@@ -30,7 +20,7 @@ public class CategoryServiceClient implements CategoryService {
         }
 
         try {
-            return webClient.get()
+            return budgetWebClient.get()
                     .uri("/categories/{id}", categoryId)
                     .retrieve()
                     .onStatus(status -> status == HttpStatus.NOT_FOUND, response -> {
@@ -44,25 +34,5 @@ public class CategoryServiceClient implements CategoryService {
         } catch (Exception e) {
             throw new RuntimeException("Не удалось связаться с Budget Service или произошла ошибка: " + e.getMessage(), e);
         }
-    }
-
-    @Override
-    public CategoryDto createCategory(Long userId, CreateCategoryRequest request) {
-        throw new UnsupportedOperationException("Creating categories is managed by Budget Service.");
-    }
-
-    @Override
-    public Page<CategoryDto> getAllCategories(Long userId, int page, int size) {
-        return new PageImpl<>(Collections.emptyList());
-    }
-
-    @Override
-    public CategoryDto updateCategory(Long userId, Long id, CreateCategoryRequest request) {
-        throw new UnsupportedOperationException("Updating categories is managed by Budget Service.");
-    }
-
-    @Override
-    public void deleteCategory(Long userId, Long id) {
-        throw new UnsupportedOperationException("Deleting categories is managed by Budget Service.");
     }
 }

@@ -15,20 +15,27 @@ import java.util.stream.IntStream;
 public class BankDataGenerator {
 
     private static final List<TransactionTemplate> TRANSACTION_TEMPLATES = List.of(
-            // 1. Продукты (MCC 5411)
-            new TransactionTemplate(new BigDecimal("-4500.25"), "Супермаркет 'Лента'", "5411", "Еженедельная закупка продуктов", 1L, "Продукты (Банк)"),
-            // 2. Зарплата (Доход)
-            new TransactionTemplate(new BigDecimal("95000.00"), "Работодатель ООО", null, "Зарплата за текущий месяц", 2L, "Зачисления (Банк)"),
-            // 3. Кафе/Рестораны (MCC 5812)
-            new TransactionTemplate(new BigDecimal("-1250.00"), "Ресторан 'Уют'", "5812", "Ужин с друзьями", 3L, "Общепит (Банк)"),
-            // 4. Коммунальные услуги (MCC 4900)
-            new TransactionTemplate(new BigDecimal("-3200.00"), "МосЭнергоСбыт", "4900", "Оплата электроэнергии", 4L, "ЖКХ (Банк)"),
-            // 5. Топливо (MCC 5541)
-            new TransactionTemplate(new BigDecimal("-2100.00"), "АЗС Лукойл", "5541", "Бензин АИ-95", 5L, "Топливо (Банк)"),
-            // 6. Одежда (MCC 5651)
-            new TransactionTemplate(new BigDecimal("-7999.00"), "Zara Store", "5651", "Покупка рубашки", 6L, "Одежда (Банк)"),
-            // 7. Перевод (Расход)
-            new TransactionTemplate(new BigDecimal("-5000.00"), "Перевод Другу", null, "Перевод долга", 7L, "Переводы (Банк)")
+            // 1. Продукты
+            new TransactionTemplate(new BigDecimal("-4500.25"), "Супермаркет 'Лента'", "5411",
+                    "Еженедельная закупка продуктов", 1L, "Продукты (Банк)"),
+            // 2. Зарплата
+            new TransactionTemplate(new BigDecimal("95000.00"), "Работодатель ООО", null,
+                    "Зарплата за текущий месяц", 2L, "Зачисления (Банк)"),
+            // 3. Кафе/Рестораны
+            new TransactionTemplate(new BigDecimal("-1250.00"), "Ресторан 'Уют'", "5812",
+                    "Ужин с друзьями", 3L, "Общепит (Банк)"),
+            // 4. Коммунальные услуги
+            new TransactionTemplate(new BigDecimal("-3200.00"), "МосЭнергоСбыт", "4900",
+                    "Оплата электроэнергии", 4L, "ЖКХ (Банк)"),
+            // 5. Топливо
+            new TransactionTemplate(new BigDecimal("-2100.00"), "АЗС Лукойл", "5542",
+                    "Бензин АИ-95", 5L, "Топливо (Банк)"),
+            // 6. Одежда
+            new TransactionTemplate(new BigDecimal("-7999.00"), "Zara Store", "5651",
+                    "Покупка рубашки", 6L, "Одежда (Банк)"),
+            // 7. Перевод
+            new TransactionTemplate(new BigDecimal("-5000.00"), "Перевод Другу", null,
+                    "Перевод долга", 7L, "Переводы (Банк)")
     );
 
     public List<TransactionDto> fetchTransactions(int year, int month) {
@@ -53,15 +60,15 @@ public class BankDataGenerator {
 
         return TransactionDto.builder()
                 .id(null)
-                .amount(template.amount)
-                .external_id("bank-ref-" + baseDate.getEpochSecond() + "-" + index)
-                .transaction_date(transactionDate)
-                .description(template.description)
-                .merchant_name(template.merchantName)
-                .mcc(template.mcc)
+                .amount(template.amount())
+                .externalId("bank-ref-" + baseDate.getEpochSecond() + "-" + index)
+                .transactionDate(transactionDate)
+                .description(template.description())
+                .merchantName(template.merchantName())
+                .mcc(template.mcc())
                 .category(CategoryDto.builder()
-                        .id(template.bankCategoryId)
-                        .name(template.bankCategoryName)
+                        .id(template.bankCategoryId())
+                        .name(template.bankCategoryName())
                         .isSystem(false)
                         .build())
                 .build();
