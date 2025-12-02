@@ -11,6 +11,8 @@
     <modules>
         <module>core</module>
         <module>budget-service</module>
+        <module>transaction-service</module>
+        <module>bank-service</module>
     </modules>
 
     <properties>
@@ -67,6 +69,10 @@
             <artifactId>mapstruct-processor</artifactId>
             <version>${mapstruct.version}</version>
             <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webflux</artifactId>
         </dependency>
     </dependencies>
 

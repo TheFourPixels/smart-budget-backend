@@ -8,8 +8,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-
 @RestController
 @RequestMapping("/api/v1/categories")
 @RequiredArgsConstructor
@@ -41,5 +39,10 @@ public class CategoryController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteCategory(@PathVariable Long id) {
         categoryService.deleteCategory(DUMMY_USER_ID, id);
+    }
+
+    @GetMapping("/{id}")
+    public CategoryDto getCategoryById(@PathVariable Long id) {
+        return categoryService.getCategoryById(id);
     }
 }

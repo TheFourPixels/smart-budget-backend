@@ -13,8 +13,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-
 @Service
 @RequiredArgsConstructor
 public class CategoryServiceImpl implements CategoryService {
@@ -64,5 +62,13 @@ public class CategoryServiceImpl implements CategoryService {
             throw new IllegalArgumentException("Нельзя удалять системные или чужие категории");
         }
         categoryRepository.deleteById(id);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public CategoryDto getCategoryById(Long categoryId) {
+        return categoryRepository.findById(categoryId)
+                .map(categoryMapper::toDto)
+                .orElseThrow(() -> new EntityNotFoundException("Category not found with id: " + categoryId));
     }
 }

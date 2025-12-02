@@ -1,8 +1,8 @@
 {
   "info": {
     "_postman_id": "f12f87d9-eb3d-4e21-a0eb-1fecf2123843",
-    "name": "API \"Smart Budget\" - Budget and Categories Only",
-    "description": "Документация API для управления бюджетом и категориями",
+    "name": "API \"Smart Budget\" - Budget, Categories, and Transactions",
+    "description": "Документация API для управления бюджетом, категориями и транзакциями",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "42953160"
   },
@@ -24,8 +24,8 @@
               "options": { "raw": { "language": "json" } }
             },
             "url": {
-              "raw": "{{baseUrl}}/budgets",
-              "host": ["{{baseUrl}}"],
+              "raw": "{{budgetBaseUrl}}/budgets",
+              "host": ["{{budgetBaseUrl}}"],
               "path": ["budgets"]
             }
           },
@@ -86,8 +86,8 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/budgets/2025/10",
-              "host": ["{{baseUrl}}"],
+              "raw": "{{budgetBaseUrl}}/budgets/2025/10",
+              "host": ["{{budgetBaseUrl}}"],
               "path": ["budgets", "2025", "10"]
             }
           },
@@ -118,8 +118,8 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/budgets/2025/10",
-              "host": ["{{baseUrl}}"],
+              "raw": "{{budgetBaseUrl}}/budgets/2025/10",
+              "host": ["{{budgetBaseUrl}}"],
               "path": ["budgets", "2025", "10"]
             }
           },
@@ -153,6 +153,7 @@
                   "    pm.expect(pm.response.json().name).to.equal(\"Новая категория\");",
                   "    var categoryId = pm.response.json().id;",
                   "    pm.environment.set(\"categoryId\", categoryId);",
+                  "    pm.environment.set(\"test_category_id\", categoryId); // Для использования в тестах транзакций",
                   "});"
                 ],
                 "type": "text/javascript",
@@ -183,8 +184,8 @@
               }
             },
             "url": {
-              "raw": "{{baseUrl}}/categories",
-              "host": ["{{baseUrl}}"],
+              "raw": "{{budgetBaseUrl}}/categories",
+              "host": ["{{budgetBaseUrl}}"],
               "path": ["categories"]
             }
           },
@@ -229,8 +230,8 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/categories",
-              "host": ["{{baseUrl}}"],
+              "raw": "{{budgetBaseUrl}}/categories",
+              "host": ["{{budgetBaseUrl}}"],
               "path": ["categories"]
             }
           },
@@ -292,8 +293,8 @@
               }
             },
             "url": {
-              "raw": "{{baseUrl}}/categories/{{currentCategoryId}}",
-              "host": ["{{baseUrl}}"],
+              "raw": "{{budgetBaseUrl}}/categories/{{currentCategoryId}}",
+              "host": ["{{budgetBaseUrl}}"],
               "path": ["categories", "{{currentCategoryId}}"]
             }
           },
@@ -337,20 +338,165 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/categories/{{currentCategoryId}}",
-              "host": ["{{baseUrl}}"],
+              "raw": "{{budgetBaseUrl}}/categories/{{currentCategoryId}}",
+              "host": ["{{budgetBaseUrl}}"],
               "path": ["categories", "{{currentCategoryId}}"]
             }
           },
           "response": []
         }
       ]
+    },
+    {
+      "name": "transactions (Транзакции)",
+      "item": [
+        {
+          "name": "1. Запустить асинхронный импорт транзакций",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Import accepted (HTTP 200)\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    // Можно проверить, что тело ответа пустое или содержит информацию о статусе задачи",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{transactionBaseUrl}}/transactions/sync?year=2025&month=10",
+              "host": ["{{transactionBaseUrl}}"],
+              "path": ["transactions", "sync"],
+              "query": [
+                { "key": "year", "value": "2025" },
+                { "key": "month", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Получить список транзакций с фильтрацией (Проверка категории)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Transactions retrieved successfully with pagination and filter\", function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(json).to.be.an('object');",
+                  "    pm.expect(json).to.have.property('content').that.is.an('array');",
+                  "    ",
+                  "    // Проверяем, что в транзакциях есть поле category (от Budget Service)",
+                  "    if (json.content.length > 0) {",
+                  "        pm.expect(json.content[0]).to.have.property('category');",
+                  "        pm.expect(json.content[0].category).to.have.property('id');",
+                  "        pm.expect(json.content[0].category).to.have.property('name');",
+                  "        ",
+                  "        // Сохраняем ID первой транзакции для последующего PATCH",
+                  "        pm.environment.set(\"firstTransactionId\", json.content[0].id);",
+                  "    }",
+                  "    pm.expect(json.pageable).to.have.property('pageNumber').to.equal(0);",
+                  "    pm.expect(json.pageable).to.have.property('pageSize').to.equal(1);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{transactionBaseUrl}}/transactions?page=0&size=1&categoryId=1",
+              "host": ["{{transactionBaseUrl}}"],
+              "path": ["transactions"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "1" },
+                { "key": "categoryId", "value": "1" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "3. Изменить категорию для конкретной транзакции",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "var transactionId = 1;",
+                  "var newCategoryId = 3;",
+                  "",
+                  "if (!transactionId || !newCategoryId) {",
+                  "    throw new Error(\"Не установлены 'firstTransactionId' или 'test_category_id'. Сначала запустите предыдущие тесты.\");",
+                  "}",
+                  "",
+                  "// Устанавливаем ID для URL и тела запроса",
+                  "pm.environment.set(\"transactionToUpdateId\", transactionId);",
+                  "pm.environment.set(\"newCategoryId\", newCategoryId);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Category updated successfully\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const json = pm.response.json();",
+                  "    const expectedCategoryId = parseInt(pm.environment.get(\"newCategoryId\"));",
+                  "    ",
+                  "    // Проверяем, что ID категории в ответе соответствует новому ID",
+                  "    pm.expect(json.category.id).to.equal(expectedCategoryId);",
+                  "    pm.expect(json.id).to.equal(parseInt(pm.environment.get(\"transactionToUpdateId\")));",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"categoryId\": {{newCategoryId}}\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{transactionBaseUrl}}/transactions/{{transactionToUpdateId}}/category",
+              "host": ["{{transactionBaseUrl}}"],
+              "path": ["transactions", "{{transactionToUpdateId}}", "category"]
+            }
+          }
+        }
+      ]
     }
   ],
   "variable": [
     {
-      "key": "baseUrl",
+      "key": "budgetBaseUrl",
       "value": "http://localhost:8081/api/v1"
+    },
+    {
+      "key": "transactionBaseUrl",
+      "value": "http://localhost:8083/api/v1"
     }
   ]
 }
