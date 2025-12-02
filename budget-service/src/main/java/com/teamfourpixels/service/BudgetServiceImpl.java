@@ -45,7 +45,7 @@ public class BudgetServiceImpl implements BudgetService {
     public BudgetDto getBudget(Long userId, Integer year, Integer month) {
         return budgetRepository.findByUserIdAndYearAndMonth(userId, year, month)
                 .map(budgetMapper::toDto)
-                .orElseThrow(() -> new EntityNotFoundException("Бюджет не найден"));
+                .orElse(null);
     }
 
     @Override

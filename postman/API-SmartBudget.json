@@ -16,7 +16,8 @@
             "method": "POST",
             "header": [
               { "key": "Content-Type", "value": "application/json" },
-              { "key": "Accept", "value": "application/json" }
+              { "key": "Accept", "value": "application/json" },
+              { "key": "X-User-Id", "value": "1" }
             ],
             "body": {
               "mode": "raw",
@@ -153,7 +154,7 @@
                   "    pm.expect(pm.response.json().name).to.equal(\"Новая категория\");",
                   "    var categoryId = pm.response.json().id;",
                   "    pm.environment.set(\"categoryId\", categoryId);",
-                  "    pm.environment.set(\"test_category_id\", categoryId); // Для использования в тестах транзакций",
+                  "    pm.environment.set(\"test_category_id\", categoryId);",
                   "});"
                 ],
                 "type": "text/javascript",
@@ -359,7 +360,6 @@
                 "exec": [
                   "pm.test(\"Import accepted (HTTP 200)\", function () {",
                   "    pm.response.to.have.status(200);",
-                  "    // Можно проверить, что тело ответа пустое или содержит информацию о статусе задачи",
                   "});"
                 ],
                 "type": "text/javascript"
@@ -395,13 +395,11 @@
                   "    pm.expect(json).to.be.an('object');",
                   "    pm.expect(json).to.have.property('content').that.is.an('array');",
                   "    ",
-                  "    // Проверяем, что в транзакциях есть поле category (от Budget Service)",
                   "    if (json.content.length > 0) {",
                   "        pm.expect(json.content[0]).to.have.property('category');",
                   "        pm.expect(json.content[0].category).to.have.property('id');",
                   "        pm.expect(json.content[0].category).to.have.property('name');",
                   "        ",
-                  "        // Сохраняем ID первой транзакции для последующего PATCH",
                   "        pm.environment.set(\"firstTransactionId\", json.content[0].id);",
                   "    }",
                   "    pm.expect(json.pageable).to.have.property('pageNumber').to.equal(0);",
@@ -443,7 +441,6 @@
                   "    throw new Error(\"Не установлены 'firstTransactionId' или 'test_category_id'. Сначала запустите предыдущие тесты.\");",
                   "}",
                   "",
-                  "// Устанавливаем ID для URL и тела запроса",
                   "pm.environment.set(\"transactionToUpdateId\", transactionId);",
                   "pm.environment.set(\"newCategoryId\", newCategoryId);"
                 ],
@@ -459,7 +456,6 @@
                   "    const json = pm.response.json();",
                   "    const expectedCategoryId = parseInt(pm.environment.get(\"newCategoryId\"));",
                   "    ",
-                  "    // Проверяем, что ID категории в ответе соответствует новому ID",
                   "    pm.expect(json.category.id).to.equal(expectedCategoryId);",
                   "    pm.expect(json.id).to.equal(parseInt(pm.environment.get(\"transactionToUpdateId\")));",
                   "});"
@@ -487,6 +483,210 @@
           }
         }
       ]
+    },
+    {
+      "name": "goals",
+      "item": [
+        {
+          "name": "Создать новую цель",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"iPhone 16 Pro Max\",\n  \"targetAmount\": 150000.00,\n  \"deadline\": \"2026-06-30\"\n}"
+            },
+            "url": {
+              "raw": "{{goalBaseUrl}}/goals",
+              "host": ["{{goalBaseUrl}}"],
+              "path": ["goals"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Goal created\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const json = pm.response.json();",
+                  "    console.log('--- Создать новую цель: ОТВЕТ ---', json);",
+                  "    pm.expect(json.id).to.be.a('number');",
+                  "    pm.expect(json.name).to.eql('iPhone 16 Pro Max');",
+                  "    pm.expect(json.targetAmount).to.eql(150000.00);",
+                  "    pm.environment.set(\"goalId\", json.id);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Внести деньги в цель",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 25000.00\n}"
+            },
+            "url": {
+              "raw": "{{goalBaseUrl}}/goals/{{goalId}}/contribute",
+              "host": ["{{goalBaseUrl}}"],
+              "path": ["goals", "{{goalId}}", "contribute"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Contribution added\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const json = pm.response.json();",
+                  "    console.log('--- Внести деньги в цель: ОТВЕТ ---', json);",
+                  "    pm.expect(json.savedAmount).to.eql(25000.00);",
+                  "    pm.expect(json.progressPercent).to.eql(16);",
+                  "   ",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Получить все цели пользователя",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{goalBaseUrl}}/goals",
+              "host": ["{{goalBaseUrl}}"],
+              "path": ["goals"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Goals list returned\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const json = pm.response.json();",
+                  "    console.log('--- Получить все цели: ОТВЕТ ---', json);",
+                  "    pm.expect(json).to.be.an('array');",
+                  "    pm.expect(json.length).to.be.at.least(1);",
+                  "    const goal = json.find(g => g.id === parseInt(pm.environment.get('goalId')));",
+                  "    ",
+                  "    pm.expect(goal).to.be.an('object', 'Цель с goalId должна быть найдена в списке');",
+                  "    ",
+                  "    pm.expect(goal.savedAmount).to.eql(25000.00);",
+                  "    pm.expect(goal.progressPercent).to.eql(16);",
+                  "    pm.expect(goal.daysLeft).to.be.a('number');",
+                  "    pm.expect(goal.recommendedMonthly).to.be.a('number');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Получить одну цель по ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{goalBaseUrl}}/goals/{{goalId}}",
+              "host": ["{{goalBaseUrl}}"],
+              "path": ["goals", "{{goalId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Single goal returned\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.id).to.eql(parseInt(pm.environment.get('goalId')));",
+                  "    pm.expect(json.name).to.eql('iPhone 16 Pro Max');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Удалить цель",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{goalBaseUrl}}/goals/{{goalId}}",
+              "host": ["{{goalBaseUrl}}"],
+              "path": ["goals", "{{goalId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Goal deleted\", function () {",
+                  "    pm.response.to.have.status(204);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "dashboard",
+      "item": [
+        {
+          "name": "Получить дашборд за месяц",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{dashboardBaseUrl}}/dashboard/2025/10",
+              "host": ["{{dashboardBaseUrl}}"],
+              "path": ["dashboard", "2025", "10"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Dashboard returned successfully and has budget data\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const json = pm.response.json();",
+                  "    console.log('--- Получить дашборд: ОТВЕТ ---', json);",
+                  "",
+                  "    pm.expect(json).to.have.property('year').to.eql(2025);",
+                  "    pm.expect(json).to.have.property('month').to.eql(10);",
+
+                  "    pm.expect(json.activeGoals).to.be.an('array');",
+                  "    pm.expect(json.activeGoals.length).to.be.above(0, \"Active Goals должны быть загружены.\");",
+                  "",
+                  "    console.log('Dashboard loaded successfully');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
     }
   ],
   "variable": [
@@ -497,6 +697,14 @@
     {
       "key": "transactionBaseUrl",
       "value": "http://localhost:8083/api/v1"
+    },
+    {
+      "key": "goalBaseUrl",
+      "value": "http://localhost:8087/api/v1"
+    },
+    {
+      "key": "dashboardBaseUrl",
+      "value": "http://localhost:8088/api/v1"
     }
   ]
 }

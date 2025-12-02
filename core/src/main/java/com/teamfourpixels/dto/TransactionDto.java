@@ -18,4 +18,5 @@ public class TransactionDto {
     private String merchantName;
     private String mcc;
     private CategoryDto category;
+    private Boolean isIncome;
 }

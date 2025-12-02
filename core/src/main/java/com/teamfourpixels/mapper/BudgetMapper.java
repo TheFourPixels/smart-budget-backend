@@ -8,7 +8,11 @@ import java.util.stream.Collectors;
 
 @Mapper(componentModel = "spring")
 public interface BudgetMapper {
+
+    @Mapping(target = "limits", source = "entity.limits")
     BudgetDto toDto(Budget entity);
+
+    LimitDto toLimitDto(BudgetLimit entity);
 
     @Mapping(target = "totalIncome", source = "request.totalIncome")
     @Mapping(target = "id", ignore = true)
