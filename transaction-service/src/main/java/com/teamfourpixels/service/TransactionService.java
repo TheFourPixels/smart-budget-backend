@@ -11,6 +11,7 @@ import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.scheduling.annotation.Async; // ✅ ИМПОРТ
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
@@ -18,6 +19,7 @@ import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture; // ✅ ИМПОРТ
 
 @Service
 @RequiredArgsConstructor
@@ -25,7 +27,7 @@ public class TransactionService {
     private final TransactionRepository repository;
     private final TransactionMapper mapper;
     private final BankServiceClient bankServiceClient;
-
+    private final CategoryQueryService categoryQueryService;
     private final List<ClassificationStrategy> classificationStrategies;
 
     private static final Long UNCATEGORIZED_ID = 999L;
@@ -47,10 +49,12 @@ public class TransactionService {
         return mapper.toDto(getByIdAndUser(id, userId));
     }
 
+    @Async
     @Transactional
-    public int importAndClassifyTransactions(Long userId, int year, int month) {
+    public CompletableFuture<Integer> importAndClassifyTransactions(Long userId, int year, int month) {
         List<TransactionDto> bankTransactions = bankServiceClient.fetchTransactions(year, month);
         int newCount = 0;
+
         for (TransactionDto bankDto : bankTransactions) {
             if (repository.findByUserIdAndBankTransactionRefId(userId, bankDto.getExternalId()).isPresent()) {
                 continue;
@@ -62,7 +66,8 @@ public class TransactionService {
             repository.save(transaction);
             newCount++;
         }
-        return newCount;
+
+        return CompletableFuture.completedFuture(newCount);
     }
 
     private Transaction convertBankDtoToTransaction(Long userId, TransactionDto bankDto) {
@@ -93,9 +98,19 @@ public class TransactionService {
     @Transactional
     public TransactionDto updateTransactionCategory(Long userId, Long id, Long categoryId) {
         Transaction t = getByIdAndUser(id, userId);
+
+        try {
+            categoryQueryService.getCategoryById(categoryId);
+        } catch (EntityNotFoundException e) {
+            throw new IllegalArgumentException(
+                    "Ошибка: Невозможно изменить категорию. Категория с ID " + categoryId + " не найдена."
+            );
+        }
+
         t.setCategoryId(categoryId);
         return mapper.toDto(repository.save(t));
     }
+
     private Transaction getByIdAndUser(Long id, Long userId) {
         return repository.findById(id)
                 .filter(t -> t.getUserId().equals(userId))
