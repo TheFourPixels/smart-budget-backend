@@ -6,8 +6,8 @@ import com.teamfourpixels.entity.Goal;
 import org.mapstruct.*;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.LocalDate; // Оставьте этот импорт
-import java.time.temporal.ChronoUnit; // Оставьте этот импорт
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 
 @Mapper(
         componentModel = "spring",
@@ -49,4 +49,11 @@ public interface GoalMapper {
                 .subtract(g.getSavedAmount())
                 .divide(BigDecimal.valueOf(months), 2, RoundingMode.HALF_UP);
     }
+
+    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "userId", ignore = true)
+    @Mapping(target = "savedAmount", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    void updateEntity(CreateGoalRequest dto, @MappingTarget Goal entity);
 }

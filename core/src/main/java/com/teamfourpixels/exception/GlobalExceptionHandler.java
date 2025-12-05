@@ -3,12 +3,19 @@ package com.teamfourpixels.exception;
 import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import com.teamfourpixels.dto.ErrorResponse;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.Path;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -57,5 +64,27 @@ public class GlobalExceptionHandler {
 
         ErrorResponse error = new ErrorResponse(HttpStatus.BAD_REQUEST.value(), message);
         return ResponseEntity.badRequest().body(error);
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Map<String, Object> handleConstraintViolation(ConstraintViolationException ex) {
+        Map<String, Object> errors = new HashMap<>();
+        errors.put("status", HttpStatus.BAD_REQUEST.value());
+        errors.put("error", "Bad Request");
+
+        String message = ex.getConstraintViolations().stream()
+                .map(violation -> {
+                    String field = null;
+                    for (Path.Node node : violation.getPropertyPath()) {
+                        field = node.getName();
+                    }
+                    return String.format("Параметр '%s': %s", field, violation.getMessage());
+                })
+                .collect(Collectors.joining("; "));
+
+        errors.put("message", "Ошибка валидации параметров: " + message);
+
+        return errors;
     }
 }

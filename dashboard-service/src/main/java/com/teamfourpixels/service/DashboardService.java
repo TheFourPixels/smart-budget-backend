@@ -58,7 +58,11 @@ public class DashboardService {
                 .block();
 
         List<GoalDto> goals = goalClient.get()
-                .uri("/goals")
+                .uri(uriBuilder -> uriBuilder
+                        .path("/goals/active")
+                        .queryParam("year", year)
+                        .queryParam("month", month)
+                        .build())
                 .header(USER_ID_HEADER, USER_ID.toString())
                 .retrieve()
                 .bodyToFlux(GoalDto.class)
@@ -89,8 +93,8 @@ public class DashboardService {
 
         resp.setCategoryStats(calculateCategoryStats(budget, transactions));
         resp.setRecentTransactions(getRecentTransactions(transactions));
+
         resp.setActiveGoals(goals != null ? goals.stream()
-                .filter(g -> g.getSavedAmount().compareTo(g.getTargetAmount()) < 0)
                 .map(this::toGoalSummary)
                 .limit(5)
                 .toList() : List.of());

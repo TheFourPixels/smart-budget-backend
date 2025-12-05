@@ -15,6 +15,10 @@ spring:
     properties:
       hibernate.format_sql: true
 
+service:
+  budget:
+    url: http://budget-service:8081/api/v1
+
 management:
   endpoints:
     web:
