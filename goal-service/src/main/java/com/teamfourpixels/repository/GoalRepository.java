@@ -8,6 +8,4 @@ import java.util.List;
 
 public interface GoalRepository extends JpaRepository<Goal, Long> {
     List<Goal> findAllByUserId(Long userId);
-    void deleteByUserIdAndId(Long userId, Long id);
-    List<Goal> findAllByUserIdAndDeadlineGreaterThanEqual(Long userId, LocalDate date);
 }
