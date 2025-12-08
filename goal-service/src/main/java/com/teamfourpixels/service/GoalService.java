@@ -15,8 +15,10 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 @Service
@@ -29,6 +31,34 @@ public class GoalService {
 
     private static final String USER_ID_HEADER = "X-User-Id";
     private static final Long DUMMY_USER_ID = 1L;
+
+    private Integer calculateProgress(Goal g) {
+        if (g.getTargetAmount().compareTo(BigDecimal.ZERO) == 0) return 0;
+        return g.getSavedAmount()
+                .divide(g.getTargetAmount(), 4, RoundingMode.HALF_UP)
+                .multiply(BigDecimal.valueOf(100))
+                .intValue();
+    }
+
+    private Long calculateDaysLeft(Goal g) {
+        return ChronoUnit.DAYS.between(LocalDate.now(), g.getDeadline());
+    }
+
+    private BigDecimal calculateRecommendedMonthly(Goal g) {
+        long months = ChronoUnit.MONTHS.between(LocalDate.now(), g.getDeadline());
+        if (months <= 0) return BigDecimal.ZERO;
+        return g.getTargetAmount()
+                .subtract(g.getSavedAmount())
+                .divide(BigDecimal.valueOf(months), 2, RoundingMode.HALF_UP);
+    }
+
+    private GoalDto addCalculatedFields(Goal entity) {
+        GoalDto dto = mapper.toDto(entity);
+        dto.setProgressPercent(calculateProgress(entity));
+        dto.setDaysLeft(calculateDaysLeft(entity));
+        dto.setRecommendedMonthly(calculateRecommendedMonthly(entity));
+        return dto;
+    }
 
     private void checkBudgetExists(Long userId, int year, int month) {
         try {
@@ -69,7 +99,9 @@ public class GoalService {
 
         Goal goal = mapper.toEntity(req);
         goal.setUserId(userId);
-        return mapper.toDto(repository.save(goal));
+        Goal savedGoal = repository.save(goal);
+
+        return addCalculatedFields(savedGoal);
     }
 
     @Transactional(readOnly = true)
@@ -79,7 +111,7 @@ public class GoalService {
         return filterByCreationMonth(allUserGoals, year, month).stream()
                 .filter(g -> g.getSavedAmount().compareTo(g.getTargetAmount()) < 0)
                 .filter(g -> g.getDeadline().isAfter(LocalDate.now()) || g.getDeadline().isEqual(LocalDate.now()))
-                .map(mapper::toDto)
+                .map(this::addCalculatedFields)
                 .toList();
     }
 
@@ -90,7 +122,7 @@ public class GoalService {
         return filterByCreationMonth(allUserGoals, year, month).stream()
                 .filter(g -> g.getSavedAmount().compareTo(g.getTargetAmount()) >= 0 ||
                         g.getDeadline().isBefore(LocalDate.now()))
-                .map(mapper::toDto)
+                .map(this::addCalculatedFields)
                 .toList();
     }
 
@@ -98,7 +130,7 @@ public class GoalService {
     public GoalDto get(Long userId, Long id) {
         return repository.findById(id)
                 .filter(g -> g.getUserId().equals(userId))
-                .map(mapper::toDto)
+                .map(this::addCalculatedFields)
                 .orElseThrow(() -> new EntityNotFoundException("Цель не найдена"));
     }
 
@@ -110,7 +142,8 @@ public class GoalService {
         if (goal.getSavedAmount().compareTo(goal.getTargetAmount()) > 0) {
             goal.setSavedAmount(goal.getTargetAmount());
         }
-        return mapper.toDto(repository.save(goal));
+        Goal savedGoal = repository.save(goal);
+        return addCalculatedFields(savedGoal);
     }
 
     @Transactional
@@ -129,6 +162,7 @@ public class GoalService {
             goal.setSavedAmount(goal.getTargetAmount());
         }
 
-        return mapper.toDto(repository.save(goal));
+        Goal savedGoal = repository.save(goal);
+        return addCalculatedFields(savedGoal);
     }
 }
