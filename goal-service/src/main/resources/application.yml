@@ -1,0 +1,26 @@
+server:
+  port: 8087
+
+spring:
+  application:
+    name: goal-service
+  datasource:
+    url: jdbc:postgresql://db:5432/smartbudget
+    username: postgres
+    password: 12345
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate.format_sql: true
+
+service:
+  budget:
+    url: http://budget-service:8081/api/v1
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

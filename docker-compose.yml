@@ -18,6 +18,28 @@ services:
       retries: 10
       start_period: 10s
 
+  budget-service:
+    build: ./budget-service
+    container_name: budget_service
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/smartbudget
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: 12345
+      JWT_SECRET: secret-key
+      SPRING_PROFILES_ACTIVE: docker
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    restart: on-failure
+
   transaction-service:
     build: ./transaction-service
     container_name: transaction_service
@@ -41,28 +63,6 @@ services:
       start_period: 70s
     restart: on-failure
 
-  budget-service:
-    build: ./budget-service
-    container_name: budget_service
-    ports:
-      - "8081:8081"
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/smartbudget
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: 12345
-      JWT_SECRET: secret-key
-      SPRING_PROFILES_ACTIVE: docker
-    depends_on:
-      db:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 60s
-    restart: on-failure
-
   bank-service:
     build: ./bank-service
     container_name: bank_service
@@ -81,6 +81,52 @@ services:
       timeout: 5s
       retries: 10
       start_period: 40s
+    restart: on-failure
+
+  goal-service:
+    build: ./goal-service
+    container_name: goal_service
+    ports:
+      - "8087:8087"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/smartbudget
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: 12345
+      SPRING_PROFILES_ACTIVE: docker
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8087/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 50s
+    restart: on-failure
+
+  dashboard-service:
+    build: ./dashboard-service
+    container_name: dashboard_service
+    ports:
+      - "8088:8088"
+    environment:
+      SERVICE_BUDGET_URL: http://budget-service:8081/api/v1
+      SERVICE_TRANSACTION_URL: http://transaction-service:8083/api/v1
+      SERVICE_GOAL_URL: http://goal-service:8087/api/v1
+      SPRING_PROFILES_ACTIVE: docker
+    depends_on:
+      budget-service:
+        condition: service_healthy
+      transaction-service:
+        condition: service_healthy
+      goal-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8088/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 80s
     restart: on-failure
 
 volumes:

@@ -23,6 +23,12 @@ public class CategoryServiceImpl implements CategoryService {
     @Override
     @Transactional
     public CategoryDto createCategory(Long userId, CreateCategoryRequest request) {
+
+        if (categoryRepository.existsByNameForUserOrIsSystem(userId, request.getName())) {
+            throw new IllegalArgumentException(
+                    String.format("Ошибка: Категория с именем '%s' уже существует.", request.getName()));
+        }
+
         Category category = Category.builder()
                 .userId(userId)
                 .name(request.getName())
@@ -34,7 +40,8 @@ public class CategoryServiceImpl implements CategoryService {
     @Override
     public Page<CategoryDto> getAllCategories(Long userId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
-        return categoryRepository.findByUserId(userId, pageable)
+
+        return categoryRepository.findByUserIdOrIsSystem(userId, true, pageable)
                 .map(categoryMapper::toDto);
     }
 
@@ -69,6 +76,6 @@ public class CategoryServiceImpl implements CategoryService {
     public CategoryDto getCategoryById(Long categoryId) {
         return categoryRepository.findById(categoryId)
                 .map(categoryMapper::toDto)
-                .orElseThrow(() -> new EntityNotFoundException("Category not found with id: " + categoryId));
+                .orElseThrow(() -> new EntityNotFoundException("Категория не найдена с таким id: " + categoryId));
     }
 }

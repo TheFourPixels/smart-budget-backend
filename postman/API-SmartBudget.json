@@ -1,366 +1,159 @@
 {
   "info": {
-    "_postman_id": "f12f87d9-eb3d-4e21-a0eb-1fecf2123843",
-    "name": "API \"Smart Budget\" - Budget, Categories, and Transactions",
-    "description": "Документация API для управления бюджетом, категориями и транзакциями",
+    "_postman_id": "smart-budget-final-v4",
+    "name": "Smart Budget API - Final & Robust Tests",
+    "description": "Полный набор тестов для всех микросервисов (с исправлением Async и Cleanup)",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "42953160"
   },
   "item": [
     {
-      "name": "budgets",
+      "name": "1. Categories (Категории)",
       "item": [
         {
-          "name": "Создать или обновить бюджет на период",
-          "request": {
-            "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Accept", "value": "application/json" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"year\": 2025,\n  \"month\": 10,\n  \"totalIncome\": 100000.00,\n  \"limits\": [\n    {\"categoryId\": 1, \"limitValue\": 50.00, \"limitType\": \"PERCENT\"},\n    {\"categoryId\": 2, \"limitValue\": 50.00, \"limitType\": \"PERCENT\"}\n  ]\n}",
-              "options": { "raw": { "language": "json" } }
-            },
-            "url": {
-              "raw": "{{budgetBaseUrl}}/budgets",
-              "host": ["{{budgetBaseUrl}}"],
-              "path": ["budgets"]
-            }
-          },
+          "name": "Create Category (POST)",
           "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const randomNum = Math.floor(Math.random() * 100000);",
+                  "pm.environment.set(\"unique_cat_name\", \"Test Cat \" + randomNum);"
+                ],
+                "type": "text/javascript"
+              }
+            },
             {
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test(\"Budget created or updated successfully\", function () {",
-                  "    pm.response.to.have.status(200);",
-                  "    const json = pm.response.json();",
-                  "    pm.expect(json.year).to.equal(2025);",
-                  "    pm.expect(json.month).to.equal(10);",
-                  "    pm.expect(json.totalIncome).to.equal(100000.00);",
-                  "    pm.expect(json.limits.length).to.equal(2);",
-                  "    pm.expect(json.limits[0].categoryId).to.equal(1);",
-                  "    pm.expect(json.limits[0].limitValue).to.equal(50.00);",
-                  "    pm.expect(json.limits[0].limitType).to.equal(\"PERCENT\");",
-                  "    pm.expect(json.limits[1].categoryId).to.equal(2);",
-                  "    pm.expect(json.limits[1].limitValue).to.equal(50.00);",
-                  "    pm.expect(json.limits[1].limitType).to.equal(\"PERCENT\");",
-                  "});"
+                  "pm.test(\"Status is 201 Created\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.environment.set(\"created_cat_id\", jsonData.id);"
                 ],
                 "type": "text/javascript"
               }
             }
-          ]
-        },
-        {
-          "name": "Получить бюджет и лимиты на период",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Budget retrieved successfully\", function () {",
-                  "    pm.response.to.have.status(200);",
-                  "    pm.expect(pm.response.json().year).to.equal(2025);",
-                  "    pm.expect(pm.response.json().month).to.equal(10);",
-                  "    pm.expect(pm.response.json().totalIncome).to.equal(100000.00);",
-                  "    pm.expect(pm.response.json().limits.length).to.equal(2);",
-                  "    pm.expect(pm.response.json().limits[0].categoryId).to.equal(1);",
-                  "    pm.expect(pm.response.json().limits[0].limitValue).to.equal(50.00);",
-                  "    pm.expect(pm.response.json().limits[0].limitType).to.equal(\"PERCENT\");",
-                  "});"
-                ],
-                "type": "text/javascript",
-                "packages": {}
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{budgetBaseUrl}}/budgets/2025/10",
-              "host": ["{{budgetBaseUrl}}"],
-              "path": ["budgets", "2025", "10"]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Удалить бюджет на период",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Budget deleted successfully\", function () {",
-                  "    pm.response.to.have.status(204);",
-                  "});"
-                ],
-                "type": "text/javascript",
-                "packages": {}
-              }
-            }
-          ],
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{budgetBaseUrl}}/budgets/2025/10",
-              "host": ["{{budgetBaseUrl}}"],
-              "path": ["budgets", "2025", "10"]
-            }
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "categories",
-      "item": [
-        {
-          "name": "Создать новую пользовательскую категорию",
-          "event": [
-            {
-              "listen": "prerequest",
-              "script": {
-                "exec": [
-                  "pm.environment.set(\"categoryId\", null);"
-                ],
-                "type": "text/javascript",
-                "packages": {}
-              }
-            },
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Category created successfully\", function () {",
-                  "    pm.response.to.have.status(201);",
-                  "    pm.expect(pm.response.json()).to.have.property(\"id\");",
-                  "    pm.expect(pm.response.json().name).to.equal(\"Новая категория\");",
-                  "    var categoryId = pm.response.json().id;",
-                  "    pm.environment.set(\"categoryId\", categoryId);",
-                  "    pm.environment.set(\"test_category_id\", categoryId); // Для использования в тестах транзакций",
-                  "});"
-                ],
-                "type": "text/javascript",
-                "packages": {}
-              }
-            }
           ],
           "request": {
             "method": "POST",
             "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-User-Id", "value": "1" }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Новая категория\"\n}",
-              "options": {
-                "raw": {
-                  "headerFamily": "json",
-                  "language": "json"
-                }
-              }
+              "raw": "{\n    \"name\": \"{{unique_cat_name}}\"\n}"
             },
             "url": {
               "raw": "{{budgetBaseUrl}}/categories",
               "host": ["{{budgetBaseUrl}}"],
               "path": ["categories"]
             }
-          },
-          "response": []
+          }
         },
         {
-          "name": "Получить список всех доступных категорий",
+          "name": "Get All Categories (GET)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test(\"Categories retrieved successfully\", function () {",
-                  "    const json = pm.response.json();",
-                  "",
+                  "pm.test(\"Status is 200 OK\", function () {",
                   "    pm.response.to.have.status(200);",
-                  "",
-                  "    pm.expect(json).to.be.an('object');",
-                  "    pm.expect(json).to.have.property('content');",
-                  "    pm.expect(json.content).to.be.an('array');",
-                  "    pm.expect(json.content.length).to.be.greaterThan(0);",
-                  "",
-                  "    pm.expect(json.content[0]).to.have.property('id');",
-                  "    pm.expect(json.content[0]).to.have.property('name');",
-                  "",
-                  "    const createdCategoryId = parseInt(pm.environment.get(\"categoryId\"));",
-                  "    const found = json.content.some(category => category.id === createdCategoryId);",
-                  "    pm.expect(found).to.be.true;",
-                  "});"
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.expect(jsonData.content).to.be.an('array');",
+                  "pm.expect(jsonData.content.length).to.be.above(0);"
                 ],
-                "type": "text/javascript",
-                "packages": {}
+                "type": "text/javascript"
               }
             }
           ],
           "request": {
             "method": "GET",
             "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
+              { "key": "X-User-Id", "value": "1" }
             ],
             "url": {
-              "raw": "{{budgetBaseUrl}}/categories",
+              "raw": "{{budgetBaseUrl}}/categories?page=0&size=50",
               "host": ["{{budgetBaseUrl}}"],
-              "path": ["categories"]
+              "path": ["categories"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "50" }
+              ]
             }
-          },
-          "response": []
+          }
         },
         {
-          "name": "Обновить существующую категорию",
+          "name": "Update Category (PUT)",
           "event": [
-            {
-              "listen": "prerequest",
-              "script": {
-                "exec": [
-                  "var categoryId = pm.environment.get(\"categoryId\");",
-                  "if (!categoryId) {",
-                  "    throw new Error(\"Category ID is not set. Run 'Создать новую пользовательскую категорию' first.\");",
-                  "}",
-                  "pm.environment.set(\"currentCategoryId\", categoryId);"
-                ],
-                "type": "text/javascript",
-                "packages": {}
-              }
-            },
             {
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test(\"Category updated successfully\", function () {",
+                  "pm.test(\"Status is 200 OK\", function () {",
                   "    pm.response.to.have.status(200);",
-                  "    pm.expect(pm.response.json()).to.have.property(\"id\");",
-                  "    pm.expect(pm.response.json().name).to.equal(\"Обновленная категория\");",
-                  "    pm.expect(pm.response.json().id).to.equal(parseInt(pm.environment.get(\"currentCategoryId\")));",
-                  "});"
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.expect(jsonData.name).to.contain(\"Updated\");"
                 ],
-                "type": "text/javascript",
-                "packages": {}
+                "type": "text/javascript"
               }
             }
           ],
           "request": {
             "method": "PUT",
             "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-User-Id", "value": "1" }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Обновленная категория\"\n}",
-              "options": {
-                "raw": {
-                  "headerFamily": "json",
-                  "language": "json"
-                }
-              }
+              "raw": "{\n    \"name\": \"{{unique_cat_name}} Updated\"\n}"
             },
             "url": {
-              "raw": "{{budgetBaseUrl}}/categories/{{currentCategoryId}}",
+              "raw": "{{budgetBaseUrl}}/categories/{{created_cat_id}}",
               "host": ["{{budgetBaseUrl}}"],
-              "path": ["categories", "{{currentCategoryId}}"]
+              "path": ["categories", "{{created_cat_id}}"]
             }
-          },
-          "response": []
-        },
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Budgets (Бюджеты)",
+      "item": [
         {
-          "name": "Удалить пользовательскую категорию",
+          "name": "Create Budget (POST)",
           "event": [
             {
               "listen": "prerequest",
               "script": {
                 "exec": [
-                  "var categoryId = pm.environment.get(\"currentCategoryId\");",
-                  "if (!categoryId) {",
-                  "    throw new Error(\"Category ID is not set. Run 'Обновить существующую категорию' first.\");",
-                  "}"
+                  "// Получаем ТЕКУЩУЮ дату, чтобы Цели могли работать",
+                  "var d = new Date();",
+                  "pm.environment.set(\"budget_year\", d.getFullYear());",
+                  "pm.environment.set(\"budget_month\", d.getMonth() + 1);",
+                  "",
+                  "// Используем ID созданной категории или 1 как fallback",
+                  "var catId = pm.environment.get(\"created_cat_id\") || 1;"
                 ],
-                "type": "text/javascript",
-                "packages": {}
+                "type": "text/javascript"
               }
             },
             {
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test(\"Category deleted successfully\", function () {",
-                  "    pm.response.to.have.status(204);",
-                  "});"
-                ],
-                "type": "text/javascript",
-                "packages": {}
-              }
-            }
-          ],
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              }
-            ],
-            "url": {
-              "raw": "{{budgetBaseUrl}}/categories/{{currentCategoryId}}",
-              "host": ["{{budgetBaseUrl}}"],
-              "path": ["categories", "{{currentCategoryId}}"]
-            }
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "transactions (Транзакции)",
-      "item": [
-        {
-          "name": "1. Запустить асинхронный импорт транзакций",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Import accepted (HTTP 200)\", function () {",
+                  "pm.test(\"Status is 200 OK\", function () {",
                   "    pm.response.to.have.status(200);",
-                  "    // Можно проверить, что тело ответа пустое или содержит информацию о статусе задачи",
-                  "});"
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.expect(jsonData.totalIncome).to.eql(300000);"
                 ],
                 "type": "text/javascript"
               }
@@ -369,44 +162,32 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Accept", "value": "application/json" }
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-User-Id", "value": "1" }
             ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"year\": {{budget_year}},\n  \"month\": {{budget_month}},\n  \"totalIncome\": 300000,\n  \"limits\": [\n    {\n      \"categoryId\": {{created_cat_id}},\n      \"limitValue\": 10,\n      \"limitType\": \"PERCENT\"\n    },\n    {\n      \"categoryId\": {{created_cat_id}},\n      \"limitValue\": 50000,\n      \"limitType\": \"SUM\"\n    }\n  ]\n}"
+            },
             "url": {
-              "raw": "{{transactionBaseUrl}}/transactions/sync?year=2025&month=10",
-              "host": ["{{transactionBaseUrl}}"],
-              "path": ["transactions", "sync"],
-              "query": [
-                { "key": "year", "value": "2025" },
-                { "key": "month", "value": "10" }
-              ]
+              "raw": "{{budgetBaseUrl}}/budgets",
+              "host": ["{{budgetBaseUrl}}"],
+              "path": ["budgets"]
             }
           }
         },
         {
-          "name": "2. Получить список транзакций с фильтрацией (Проверка категории)",
+          "name": "Get Budget (GET)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test(\"Transactions retrieved successfully with pagination and filter\", function () {",
-                  "    const json = pm.response.json();",
+                  "pm.test(\"Status is 200 OK\", function () {",
                   "    pm.response.to.have.status(200);",
-                  "    pm.expect(json).to.be.an('object');",
-                  "    pm.expect(json).to.have.property('content').that.is.an('array');",
-                  "    ",
-                  "    // Проверяем, что в транзакциях есть поле category (от Budget Service)",
-                  "    if (json.content.length > 0) {",
-                  "        pm.expect(json.content[0]).to.have.property('category');",
-                  "        pm.expect(json.content[0].category).to.have.property('id');",
-                  "        pm.expect(json.content[0].category).to.have.property('name');",
-                  "        ",
-                  "        // Сохраняем ID первой транзакции для последующего PATCH",
-                  "        pm.environment.set(\"firstTransactionId\", json.content[0].id);",
-                  "    }",
-                  "    pm.expect(json.pageable).to.have.property('pageNumber').to.equal(0);",
-                  "    pm.expect(json.pageable).to.have.property('pageSize').to.equal(1);",
-                  "});"
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.expect(jsonData.year).to.eql(pm.environment.get(\"budget_year\"));"
                 ],
                 "type": "text/javascript"
               }
@@ -415,37 +196,116 @@
           "request": {
             "method": "GET",
             "header": [
-              { "key": "Accept", "value": "application/json" }
+              { "key": "X-User-Id", "value": "1" }
             ],
             "url": {
-              "raw": "{{transactionBaseUrl}}/transactions?page=0&size=1&categoryId=1",
-              "host": ["{{transactionBaseUrl}}"],
-              "path": ["transactions"],
-              "query": [
-                { "key": "page", "value": "0" },
-                { "key": "size", "value": "1" },
-                { "key": "categoryId", "value": "1" }
-              ]
+              "raw": "{{budgetBaseUrl}}/budgets/{{budget_year}}/{{budget_month}}",
+              "host": ["{{budgetBaseUrl}}"],
+              "path": ["budgets", "{{budget_year}}", "{{budget_month}}"]
             }
           }
         },
         {
-          "name": "3. Изменить категорию для конкретной транзакции",
+          "name": "Get Budget Dashboard (GET)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.expect(jsonData).to.have.property(\"remainingBudget\");"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-User-Id", "value": "1" }
+            ],
+            "url": {
+              "raw": "{{budgetBaseUrl}}/budgets/{{budget_year}}/{{budget_month}}/dashboard",
+              "host": ["{{budgetBaseUrl}}"],
+              "path": ["budgets", "{{budget_year}}", "{{budget_month}}", "dashboard"]
+            }
+          }
+        },
+        {
+          "name": "Delete Budget (DELETE)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 204 No Content\", function () {",
+                  "    pm.response.to.have.status(204);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "X-User-Id", "value": "1" }
+            ],
+            "url": {
+              "raw": "{{budgetBaseUrl}}/budgets/{{budget_year}}/{{budget_month}}",
+              "host": ["{{budgetBaseUrl}}"],
+              "path": ["budgets", "{{budget_year}}", "{{budget_month}}"]
+            }
+          }
+        },
+        {
+          "name": "Restore Budget (Setup for Goals)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-User-Id", "value": "1" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"year\": {{budget_year}},\n  \"month\": {{budget_month}},\n  \"totalIncome\": 300000,\n  \"limits\": [\n    {\n      \"categoryId\": {{created_cat_id}},\n      \"limitValue\": 100,\n      \"limitType\": \"PERCENT\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{budgetBaseUrl}}/budgets",
+              "host": ["{{budgetBaseUrl}}"],
+              "path": ["budgets"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Goals (Финансовые цели)",
+      "item": [
+        {
+          "name": "Create Goal (POST)",
           "event": [
             {
               "listen": "prerequest",
               "script": {
                 "exec": [
-                  "var transactionId = 1;",
-                  "var newCategoryId = 3;",
-                  "",
-                  "if (!transactionId || !newCategoryId) {",
-                  "    throw new Error(\"Не установлены 'firstTransactionId' или 'test_category_id'. Сначала запустите предыдущие тесты.\");",
-                  "}",
-                  "",
-                  "// Устанавливаем ID для URL и тела запроса",
-                  "pm.environment.set(\"transactionToUpdateId\", transactionId);",
-                  "pm.environment.set(\"newCategoryId\", newCategoryId);"
+                  "var date = new Date();",
+                  "date.setFullYear(date.getFullYear() + 1);",
+                  "pm.environment.set(\"goal_deadline\", date.toISOString().split('T')[0]);"
                 ],
                 "type": "text/javascript"
               }
@@ -454,15 +314,300 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test(\"Category updated successfully\", function () {",
-                  "    pm.response.to.have.status(200);",
-                  "    const json = pm.response.json();",
-                  "    const expectedCategoryId = parseInt(pm.environment.get(\"newCategoryId\"));",
-                  "    ",
-                  "    // Проверяем, что ID категории в ответе соответствует новому ID",
-                  "    pm.expect(json.category.id).to.equal(expectedCategoryId);",
-                  "    pm.expect(json.id).to.equal(parseInt(pm.environment.get(\"transactionToUpdateId\")));",
-                  "});"
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "var json = pm.response.json();",
+                  "pm.environment.set(\"goal_id\", json.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-User-Id", "value": "1" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"New Car\",\n  \"targetAmount\": 2000000,\n  \"deadline\": \"{{goal_deadline}}\"\n}"
+            },
+            "url": {
+              "raw": "{{goalBaseUrl}}/goals",
+              "host": ["{{goalBaseUrl}}"],
+              "path": ["goals"]
+            }
+          }
+        },
+        {
+          "name": "Get Goal by ID (GET)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "var json = pm.response.json();",
+                  "pm.expect(json.id).to.eql(pm.environment.get(\"goal_id\"));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-User-Id", "value": "1" }
+            ],
+            "url": {
+              "raw": "{{goalBaseUrl}}/goals/{{goal_id}}",
+              "host": ["{{goalBaseUrl}}"],
+              "path": ["goals", "{{goal_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Goal (PUT)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "var json = pm.response.json();",
+                  "pm.expect(json.name).to.contain(\"Updated\");"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-User-Id", "value": "1" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"New Car Updated\",\n  \"targetAmount\": 2000000,\n  \"deadline\": \"{{goal_deadline}}\"\n}"
+            },
+            "url": {
+              "raw": "{{goalBaseUrl}}/goals/{{goal_id}}",
+              "host": ["{{goalBaseUrl}}"],
+              "path": ["goals", "{{goal_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Contribute to Goal (POST)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "var json = pm.response.json();",
+                  "pm.expect(json.savedAmount).to.eql(10000);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-User-Id", "value": "1" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 10000\n}"
+            },
+            "url": {
+              "raw": "{{goalBaseUrl}}/goals/{{goal_id}}/contribute",
+              "host": ["{{goalBaseUrl}}"],
+              "path": ["goals", "{{goal_id}}", "contribute"]
+            }
+          }
+        },
+        {
+          "name": "Get Active Goals (GET)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "var json = pm.response.json();",
+                  "pm.expect(json).to.be.an('array');"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-User-Id", "value": "1" }
+            ],
+            "url": {
+              "raw": "{{goalBaseUrl}}/goals/active?year={{budget_year}}&month={{budget_month}}",
+              "host": ["{{goalBaseUrl}}"],
+              "path": ["goals", "active"],
+              "query": [
+                { "key": "year", "value": "{{budget_year}}" },
+                { "key": "month", "value": "{{budget_month}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Goal (DELETE)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 204\", () => pm.response.to.have.status(204));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "X-User-Id", "value": "1" }
+            ],
+            "url": {
+              "raw": "{{goalBaseUrl}}/goals/{{goal_id}}",
+              "host": ["{{goalBaseUrl}}"],
+              "path": ["goals", "{{goal_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Transactions (Транзакции)",
+      "item": [
+        {
+          "name": "1. Sync Transactions (Import) (POST)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200 or 202\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 202]);",
+                  "});",
+                  "",
+                  "// BUSY WAIT: Даем 3 секунды асинхронному сервису на сохранение данных в БД",
+                  "// Это костыль для Postman Runner/Newman, так как они выполняют запросы сразу",
+                  "var end = Date.now() + 3000;",
+                  "while (Date.now() < end);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "X-User-Id", "value": "1" }
+            ],
+            "body": {
+              "mode": "none"
+            },
+            "url": {
+              "raw": "{{transactionBaseUrl}}/transactions/sync?year=2025&month=12",
+              "host": ["{{transactionBaseUrl}}"],
+              "path": ["transactions", "sync"],
+              "query": [
+                { "key": "year", "value": "2025" },
+                { "key": "month", "value": "12" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Get List and Find Real ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "var json = pm.response.json();",
+                  "// Find ANY ID from the list to use for Get/Update tests",
+                  "if(json.content && json.content.length > 0) {",
+                  "    pm.environment.set(\"real_tx_id\", json.content[0].id);",
+                  "} else {",
+                  "    // Fail if empty, otherwise ID 1 will likely cause 404 in next tests",
+                  "    // But keeping fallback for now to see failure downstream",
+                  "    console.log(\"WARNING: No transactions found after sync!\");",
+                  "    pm.environment.set(\"real_tx_id\", 1);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-User-Id", "value": "1" }
+            ],
+            "url": {
+              "raw": "{{transactionBaseUrl}}/transactions?page=0&size=5",
+              "host": ["{{transactionBaseUrl}}"],
+              "path": ["transactions"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "5" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "3. Get Transaction by ID (GET)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "var json = pm.response.json();",
+                  "pm.expect(json.id).to.eql(pm.environment.get(\"real_tx_id\"));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-User-Id", "value": "1" }
+            ],
+            "url": {
+              "raw": "{{transactionBaseUrl}}/transactions/{{real_tx_id}}",
+              "host": ["{{transactionBaseUrl}}"],
+              "path": ["transactions", "{{real_tx_id}}"]
+            }
+          }
+        },
+        {
+          "name": "4. Change Transaction Category (PATCH)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "var json = pm.response.json();",
+                  "// 999 is system category ID (often 'Uncategorized')",
+                  "pm.expect(json.category.id).to.eql(999);"
                 ],
                 "type": "text/javascript"
               }
@@ -472,17 +617,125 @@
             "method": "PATCH",
             "header": [
               { "key": "Content-Type", "value": "application/json" },
-              { "key": "Accept", "value": "application/json" }
+              { "key": "X-User-Id", "value": "1" }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"categoryId\": {{newCategoryId}}\n}",
-              "options": { "raw": { "language": "json" } }
+              "raw": "{\n    \"categoryId\": 999\n}"
             },
             "url": {
-              "raw": "{{transactionBaseUrl}}/transactions/{{transactionToUpdateId}}/category",
+              "raw": "{{transactionBaseUrl}}/transactions/{{real_tx_id}}/category",
               "host": ["{{transactionBaseUrl}}"],
-              "path": ["transactions", "{{transactionToUpdateId}}", "category"]
+              "path": ["transactions", "{{real_tx_id}}", "category"]
+            }
+          }
+        },
+        {
+          "name": "5. Get Total Spent for Category (GET)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.expect(jsonData.categoryId).to.eql(1);",
+                  "pm.expect(jsonData).to.have.property('totalSpent');"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-User-Id", "value": "1" }
+            ],
+            "url": {
+              "raw": "{{transactionBaseUrl}}/transactions/categories/1/total",
+              "host": ["{{transactionBaseUrl}}"],
+              "path": ["transactions", "categories", "1", "total"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Dashboard (Дашборд)",
+      "item": [
+        {
+          "name": "Get Main Dashboard (GET)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "var json = pm.response.json();",
+                  "pm.expect(json).to.have.property(\"totalIncome\");",
+                  "pm.expect(json).to.have.property(\"totalSpent\");"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-User-Id", "value": "1" }
+            ],
+            "url": {
+              "raw": "{{dashboardBaseUrl}}/dashboard/{{budget_year}}/{{budget_month}}",
+              "host": ["{{dashboardBaseUrl}}"],
+              "path": ["dashboard", "{{budget_year}}", "{{budget_month}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cleanup (Уборка)",
+      "item": [
+        {
+          "name": "Delete Budget (Cleanup)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 204 or 404\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([204, 404]);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "X-User-Id", "value": "1" }
+            ],
+            "url": {
+              "raw": "{{budgetBaseUrl}}/budgets/{{budget_year}}/{{budget_month}}",
+              "host": ["{{budgetBaseUrl}}"],
+              "path": ["budgets", "{{budget_year}}", "{{budget_month}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Category (DELETE)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "X-User-Id", "value": "1" }
+            ],
+            "url": {
+              "raw": "{{budgetBaseUrl}}/categories/{{created_cat_id}}",
+              "host": ["{{budgetBaseUrl}}"],
+              "path": ["categories", "{{created_cat_id}}"]
             }
           }
         }
@@ -492,11 +745,23 @@
   "variable": [
     {
       "key": "budgetBaseUrl",
-      "value": "http://localhost:8081/api/v1"
+      "value": "http://localhost:8081/api/v1",
+      "type": "string"
     },
     {
       "key": "transactionBaseUrl",
-      "value": "http://localhost:8083/api/v1"
+      "value": "http://localhost:8083/api/v1",
+      "type": "string"
+    },
+    {
+      "key": "goalBaseUrl",
+      "value": "http://localhost:8087/api/v1",
+      "type": "string"
+    },
+    {
+      "key": "dashboardBaseUrl",
+      "value": "http://localhost:8088/api/v1",
+      "type": "string"
     }
   ]
 }

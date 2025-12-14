@@ -13,6 +13,8 @@
         <module>budget-service</module>
         <module>transaction-service</module>
         <module>bank-service</module>
+        <module>goal-service</module>
+        <module>dashboard-service</module>
     </modules>
 
     <properties>

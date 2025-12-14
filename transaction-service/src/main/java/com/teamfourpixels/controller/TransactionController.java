@@ -4,6 +4,7 @@ import com.teamfourpixels.dto.*;
 import com.teamfourpixels.service.TransactionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -41,11 +42,14 @@ public class TransactionController {
     public ResponseEntity<Map<String, String>> syncTransactions(
             @RequestParam int year,
             @RequestParam int month) {
-        int imported = service.importAndClassifyTransactions(DUMMY_USER_ID, year, month);
-        return ResponseEntity.ok(Map.of(
-                "status", "imported",
-                "message", "Импортировано " + imported + " транзакций"
-        ));
+
+        service.importAndClassifyTransactions(DUMMY_USER_ID, year, month);
+
+        return ResponseEntity.status(HttpStatus.ACCEPTED)
+                .body(Map.of(
+                        "status", "processing",
+                        "message", "Импорт транзакций запущен в фоновом режиме."
+                ));
     }
 
     @PatchMapping("/{id}/category")
@@ -64,5 +68,10 @@ public class TransactionController {
     @PostMapping
     public TransactionDto create(@RequestBody CreateTransactionRequest req) {
         return service.createTransaction(DUMMY_USER_ID, req);
+    }
+
+    @GetMapping("/categories/{categoryId}/total")
+    public CategoryTotalSpentDto getTotalSpentByCategory(@PathVariable Long categoryId) {
+        return service.getTotalSpentByCategory(DUMMY_USER_ID, categoryId);
     }
 }

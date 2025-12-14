@@ -3,6 +3,7 @@ package com.teamfourpixels.controller;
 import com.teamfourpixels.dto.CategoryDto;
 import com.teamfourpixels.dto.CreateCategoryRequest;
 import com.teamfourpixels.service.CategoryService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
@@ -25,13 +26,13 @@ public class CategoryController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public CategoryDto createCategory(@RequestBody CreateCategoryRequest request) {
+    public CategoryDto createCategory(@Valid @RequestBody CreateCategoryRequest request) {
         return categoryService.createCategory(DUMMY_USER_ID, request);
     }
 
     @PutMapping("/{id}")
     public CategoryDto updateCategory(@PathVariable Long id,
-                                      @RequestBody CreateCategoryRequest request) {
+                                      @Valid @RequestBody CreateCategoryRequest request) {
         return categoryService.updateCategory(DUMMY_USER_ID, id, request);
     }
 
@@ -45,4 +46,5 @@ public class CategoryController {
     public CategoryDto getCategoryById(@PathVariable Long id) {
         return categoryService.getCategoryById(id);
     }
+
 }
