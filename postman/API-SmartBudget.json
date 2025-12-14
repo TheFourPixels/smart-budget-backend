@@ -167,7 +167,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"year\": {{budget_year}},\n  \"month\": {{budget_month}},\n  \"totalIncome\": 300000,\n  \"limits\": [\n    {\n      \"categoryId\": {{created_cat_id}},\n      \"limitValue\": 100,\n      \"limitType\": \"PERCENT\"\n    },\n    {\n      \"categoryId\": {{created_cat_id}},\n      \"limitValue\": 50000,\n      \"limitType\": \"SUM\"\n    }\n  ]\n}"
+              "raw": "{\n  \"year\": {{budget_year}},\n  \"month\": {{budget_month}},\n  \"totalIncome\": 300000,\n  \"limits\": [\n    {\n      \"categoryId\": {{created_cat_id}},\n      \"limitValue\": 10,\n      \"limitType\": \"PERCENT\"\n    },\n    {\n      \"categoryId\": {{created_cat_id}},\n      \"limitValue\": 50000,\n      \"limitType\": \"SUM\"\n    }\n  ]\n}"
             },
             "url": {
               "raw": "{{budgetBaseUrl}}/budgets",

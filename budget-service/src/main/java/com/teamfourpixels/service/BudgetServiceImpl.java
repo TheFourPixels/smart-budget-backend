@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -32,6 +33,8 @@ public class BudgetServiceImpl implements BudgetService {
 
         validatePercentLimits(request);
         validateAmountLimits(request);
+
+        validateTotalAllocation(request);
 
         Budget budget = budgetRepository
                 .findByUserIdAndYearAndMonth(userId, year, month)
@@ -70,8 +73,9 @@ public class BudgetServiceImpl implements BudgetService {
                 .filter(l -> l.getLimitType() == LimitType.PERCENT)
                 .map(LimitDto::getLimitValue)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-        if (percentSum.compareTo(BigDecimal.valueOf(100)) != 0) {
-            throw new IllegalArgumentException("Validation Error: Total PERCENT limits must equal 100.");
+
+        if (percentSum.compareTo(BigDecimal.valueOf(100)) > 0) {
+            throw new IllegalArgumentException("Ошибка валидации: Сумма процентных лимитов не должна превышать 100%.");
         }
     }
 
@@ -80,8 +84,34 @@ public class BudgetServiceImpl implements BudgetService {
                 .filter(l -> l.getLimitType() == LimitType.SUM)
                 .map(LimitDto::getLimitValue)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+
         if (amountSum.compareTo(request.getTotalIncome()) > 0) {
-            throw new IllegalArgumentException("Validation Error: Total SUM limits must not exceed total income.");
+            throw new IllegalArgumentException("Ошибка валидации: Сумма фиксированных лимитов не должна превышать общий доход.");
+        }
+    }
+
+    private void validateTotalAllocation(CreateBudgetRequest request) {
+        BigDecimal totalIncome = request.getTotalIncome();
+
+        BigDecimal percentSum = request.getLimits().stream()
+                .filter(l -> l.getLimitType() == LimitType.PERCENT)
+                .map(LimitDto::getLimitValue)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal amountSum = request.getLimits().stream()
+                .filter(l -> l.getLimitType() == LimitType.SUM)
+                .map(LimitDto::getLimitValue)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal percentAsMoney = totalIncome.multiply(percentSum)
+                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+
+        BigDecimal totalAllocated = percentAsMoney.add(amountSum);
+
+        if (totalAllocated.compareTo(totalIncome) > 0) {
+            throw new IllegalArgumentException(
+                    String.format("Ошибка бюджета: Общая сумма лимитов (%s) превышает доход (%s).",
+                            totalAllocated, totalIncome));
         }
     }
 
