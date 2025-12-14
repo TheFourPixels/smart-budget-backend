@@ -69,4 +69,9 @@ public class TransactionController {
     public TransactionDto create(@RequestBody CreateTransactionRequest req) {
         return service.createTransaction(DUMMY_USER_ID, req);
     }
+
+    @GetMapping("/categories/{categoryId}/total")
+    public CategoryTotalSpentDto getTotalSpentByCategory(@PathVariable Long categoryId) {
+        return service.getTotalSpentByCategory(DUMMY_USER_ID, categoryId);
+    }
 }

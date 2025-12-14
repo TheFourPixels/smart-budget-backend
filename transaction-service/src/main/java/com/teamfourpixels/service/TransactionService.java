@@ -1,5 +1,6 @@
 package com.teamfourpixels.service;
 
+import com.teamfourpixels.dto.CategoryTotalSpentDto;
 import com.teamfourpixels.dto.CreateTransactionRequest;
 import com.teamfourpixels.dto.TransactionDto;
 import com.teamfourpixels.entity.Transaction;
@@ -128,5 +129,22 @@ public class TransactionService {
         Transaction t = getByIdAndUser(id, userId);
         mapper.updateEntity(request, t);
         return mapper.toDto(repository.save(t));
+    }
+
+    @Transactional(readOnly = true)
+    public CategoryTotalSpentDto getTotalSpentByCategory(Long userId, Long categoryId) {
+        try {
+            categoryQueryService.getCategoryById(categoryId);
+        } catch (EntityNotFoundException e) {
+            throw new IllegalArgumentException("Категория с ID " + categoryId + " не найдена.");
+        }
+
+        BigDecimal total = repository.getTotalSpentByCategory(userId, categoryId, OperationType.EXPENSE);
+
+        if (total == null) {
+            total = BigDecimal.ZERO;
+        }
+
+        return new CategoryTotalSpentDto(categoryId, total);
     }
 }
