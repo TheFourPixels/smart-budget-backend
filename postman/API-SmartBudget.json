@@ -1,8 +1,8 @@
 {
   "info": {
-    "_postman_id": "smart-budget-final-v3",
+    "_postman_id": "smart-budget-final-v4",
     "name": "Smart Budget API - Final & Robust Tests",
-    "description": "Полный набор тестов для всех микросервисов",
+    "description": "Полный набор тестов для всех микросервисов (с исправлением Async и Cleanup)",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "42953160"
   },
@@ -500,7 +500,12 @@
                 "exec": [
                   "pm.test(\"Status 200 or 202\", function () {",
                   "    pm.expect(pm.response.code).to.be.oneOf([200, 202]);",
-                  "});"
+                  "});",
+                  "",
+                  "// BUSY WAIT: Даем 3 секунды асинхронному сервису на сохранение данных в БД",
+                  "// Это костыль для Postman Runner/Newman, так как они выполняют запросы сразу",
+                  "var end = Date.now() + 3000;",
+                  "while (Date.now() < end);"
                 ],
                 "type": "text/javascript"
               }
@@ -539,7 +544,9 @@
                   "if(json.content && json.content.length > 0) {",
                   "    pm.environment.set(\"real_tx_id\", json.content[0].id);",
                   "} else {",
-                  "    // Fallback if list is empty (tests might fail)",
+                  "    // Fail if empty, otherwise ID 1 will likely cause 404 in next tests",
+                  "    // But keeping fallback for now to see failure downstream",
+                  "    console.log(\"WARNING: No transactions found after sync!\");",
                   "    pm.environment.set(\"real_tx_id\", 1);",
                   "}"
                 ],
@@ -691,6 +698,33 @@
     {
       "name": "Cleanup (Уборка)",
       "item": [
+        {
+          "name": "Delete Budget (Cleanup)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 204 or 404\", function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([204, 404]);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "X-User-Id", "value": "1" }
+            ],
+            "url": {
+              "raw": "{{budgetBaseUrl}}/budgets/{{budget_year}}/{{budget_month}}",
+              "host": ["{{budgetBaseUrl}}"],
+              "path": ["budgets", "{{budget_year}}", "{{budget_month}}"]
+            }
+          }
+        },
         {
           "name": "Delete Category (DELETE)",
           "request": {
