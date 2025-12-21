@@ -27,6 +27,10 @@ service:
   goal:
     url: http://goal-service:8087/api/v1
 
+jwt:
+  secret: ${JWT_SECRET}
+  expiration: 3600000
+
 management:
   endpoints:
     web:

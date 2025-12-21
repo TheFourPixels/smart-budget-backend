@@ -1,12 +1,123 @@
 {
   "info": {
-    "_postman_id": "smart-budget-final-v4",
-    "name": "Smart Budget API - Final & Robust Tests",
-    "description": "Полный набор тестов для всех микросервисов (с исправлением Async и Cleanup)",
+    "_postman_id": "smart-budget-final-v5",
+    "name": "Smart Budget API - JWT Secured Tests",
+    "description": "Полный набор тестов для всех микросервисов с JWT аутентификацией.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "42953160"
   },
   "item": [
+    {
+      "name": "0. Authentication (Auth)",
+      "item": [
+        {
+          "name": "Register User (POST)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.expect(jsonData.token).to.be.a('string');",
+                  "pm.expect(jsonData.userId).to.be.a('number');",
+                  "pm.environment.set(\"jwt_token\", jsonData.token);",
+                  "pm.environment.set(\"user_id\", jsonData.userId);",
+                  "pm.environment.set(\"created_user_id\", jsonData.userId); // для очистки"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"{{test_email}}\",\n    \"password\": \"{{test_password}}\",\n    \"name\": \"{{test_name}}\"\n}"
+            },
+            "url": {
+              "raw": "{{authBaseUrl}}/auth/register",
+              "host": ["{{authBaseUrl}}"],
+              "path": ["auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Login User (POST)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "var jsonData = pm.response.json();",
+                  "pm.environment.set(\"jwt_token\", jsonData.token);",
+                  "pm.environment.set(\"user_id\", jsonData.userId);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"{{test_email}}\",\n    \"password\": \"{{test_password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{authBaseUrl}}/auth/login",
+              "host": ["{{authBaseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Get Profile (GET)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.request.headers.add({ key: 'Authorization', value: 'Bearer ' + pm.environment.get('jwt_token') });",
+                  "pm.request.headers.add({ key: 'X-User-Id', value: pm.environment.get('user_id') });"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{authBaseUrl}}/profile",
+              "host": ["{{authBaseUrl}}"],
+              "path": ["profile"]
+            }
+          }
+        }
+      ]
+    },
     {
       "name": "1. Categories (Категории)",
       "item": [
@@ -18,7 +129,9 @@
               "script": {
                 "exec": [
                   "const randomNum = Math.floor(Math.random() * 100000);",
-                  "pm.environment.set(\"unique_cat_name\", \"Test Cat \" + randomNum);"
+                  "pm.environment.set(\"unique_cat_name\", \"Test Cat \" + randomNum);",
+                  "pm.request.headers.add({ key: 'Authorization', value: 'Bearer ' + pm.environment.get('jwt_token') });",
+                  "pm.request.headers.add({ key: 'X-User-Id', value: pm.environment.get('user_id') });"
                 ],
                 "type": "text/javascript"
               }
@@ -40,8 +153,7 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "X-User-Id", "value": "1" }
+              { "key": "Content-Type", "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
@@ -57,6 +169,16 @@
         {
           "name": "Get All Categories (GET)",
           "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.request.headers.add({ key: 'Authorization', value: 'Bearer ' + pm.environment.get('jwt_token') });",
+                  "pm.request.headers.add({ key: 'X-User-Id', value: pm.environment.get('user_id') });"
+                ],
+                "type": "text/javascript"
+              }
+            },
             {
               "listen": "test",
               "script": {
@@ -74,9 +196,7 @@
           ],
           "request": {
             "method": "GET",
-            "header": [
-              { "key": "X-User-Id", "value": "1" }
-            ],
+            "header": [],
             "url": {
               "raw": "{{budgetBaseUrl}}/categories?page=0&size=50",
               "host": ["{{budgetBaseUrl}}"],
@@ -91,6 +211,16 @@
         {
           "name": "Update Category (PUT)",
           "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.request.headers.add({ key: 'Authorization', value: 'Bearer ' + pm.environment.get('jwt_token') });",
+                  "pm.request.headers.add({ key: 'X-User-Id', value: pm.environment.get('user_id') });"
+                ],
+                "type": "text/javascript"
+              }
+            },
             {
               "listen": "test",
               "script": {
@@ -108,8 +238,7 @@
           "request": {
             "method": "PUT",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "X-User-Id", "value": "1" }
+              { "key": "Content-Type", "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
@@ -140,7 +269,9 @@
                   "pm.environment.set(\"budget_month\", d.getMonth() + 1);",
                   "",
                   "// Используем ID созданной категории или 1 как fallback",
-                  "var catId = pm.environment.get(\"created_cat_id\") || 1;"
+                  "var catId = pm.environment.get(\"created_cat_id\") || 1;",
+                  "pm.request.headers.add({ key: 'Authorization', value: 'Bearer ' + pm.environment.get('jwt_token') });",
+                  "pm.request.headers.add({ key: 'X-User-Id', value: pm.environment.get('user_id') });"
                 ],
                 "type": "text/javascript"
               }
@@ -162,12 +293,11 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "X-User-Id", "value": "1" }
+              { "key": "Content-Type", "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"year\": {{budget_year}},\n  \"month\": {{budget_month}},\n  \"totalIncome\": 300000,\n  \"limits\": [\n    {\n      \"categoryId\": {{created_cat_id}},\n      \"limitValue\": 10,\n      \"limitType\": \"PERCENT\"\n    },\n    {\n      \"categoryId\": {{created_cat_id}},\n      \"limitValue\": 50000,\n      \"limitType\": \"SUM\"\n    }\n  ]\n}"
+              "raw": "{\n  \"year\": {{budget_year}},\n  \"month\": {{budget_month}},\n  \"totalIncome\": 300000,\n  \"limits\": [\n    {\n      \"categoryId\": {{created_cat_id}},\n      \"limitValue\": 10,\n      \"limitType\": \"PERCENT\"\n    },\n    {\n      \"categoryId\": 1,\n      \"limitValue\": 50000,\n      \"limitType\": \"SUM\"\n    }\n  ]\n}"
             },
             "url": {
               "raw": "{{budgetBaseUrl}}/budgets",
@@ -179,6 +309,16 @@
         {
           "name": "Get Budget (GET)",
           "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.request.headers.add({ key: 'Authorization', value: 'Bearer ' + pm.environment.get('jwt_token') });",
+                  "pm.request.headers.add({ key: 'X-User-Id', value: pm.environment.get('user_id') });"
+                ],
+                "type": "text/javascript"
+              }
+            },
             {
               "listen": "test",
               "script": {
@@ -195,9 +335,7 @@
           ],
           "request": {
             "method": "GET",
-            "header": [
-              { "key": "X-User-Id", "value": "1" }
-            ],
+            "header": [],
             "url": {
               "raw": "{{budgetBaseUrl}}/budgets/{{budget_year}}/{{budget_month}}",
               "host": ["{{budgetBaseUrl}}"],
@@ -208,6 +346,16 @@
         {
           "name": "Get Budget Dashboard (GET)",
           "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.request.headers.add({ key: 'Authorization', value: 'Bearer ' + pm.environment.get('jwt_token') });",
+                  "pm.request.headers.add({ key: 'X-User-Id', value: pm.environment.get('user_id') });"
+                ],
+                "type": "text/javascript"
+              }
+            },
             {
               "listen": "test",
               "script": {
@@ -224,9 +372,7 @@
           ],
           "request": {
             "method": "GET",
-            "header": [
-              { "key": "X-User-Id", "value": "1" }
-            ],
+            "header": [],
             "url": {
               "raw": "{{budgetBaseUrl}}/budgets/{{budget_year}}/{{budget_month}}/dashboard",
               "host": ["{{budgetBaseUrl}}"],
@@ -237,6 +383,16 @@
         {
           "name": "Delete Budget (DELETE)",
           "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.request.headers.add({ key: 'Authorization', value: 'Bearer ' + pm.environment.get('jwt_token') });",
+                  "pm.request.headers.add({ key: 'X-User-Id', value: pm.environment.get('user_id') });"
+                ],
+                "type": "text/javascript"
+              }
+            },
             {
               "listen": "test",
               "script": {
@@ -251,9 +407,7 @@
           ],
           "request": {
             "method": "DELETE",
-            "header": [
-              { "key": "X-User-Id", "value": "1" }
-            ],
+            "header": [],
             "url": {
               "raw": "{{budgetBaseUrl}}/budgets/{{budget_year}}/{{budget_month}}",
               "host": ["{{budgetBaseUrl}}"],
@@ -264,6 +418,16 @@
         {
           "name": "Restore Budget (Setup for Goals)",
           "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.request.headers.add({ key: 'Authorization', value: 'Bearer ' + pm.environment.get('jwt_token') });",
+                  "pm.request.headers.add({ key: 'X-User-Id', value: pm.environment.get('user_id') });"
+                ],
+                "type": "text/javascript"
+              }
+            },
             {
               "listen": "test",
               "script": {
@@ -277,12 +441,11 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "X-User-Id", "value": "1" }
+              { "key": "Content-Type", "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"year\": {{budget_year}},\n  \"month\": {{budget_month}},\n  \"totalIncome\": 300000,\n  \"limits\": [\n    {\n      \"categoryId\": {{created_cat_id}},\n      \"limitValue\": 100,\n      \"limitType\": \"PERCENT\"\n    }\n  ]\n}"
+              "raw": "{\n  \"year\": {{budget_year}},\n  \"month\": {{budget_month}},\n  \"totalIncome\": 300000,\n  \"limits\": [\n    {\n      \"categoryId\": 1,\n      \"limitValue\": 100,\n      \"limitType\": \"PERCENT\"\n    }\n  ]\n}"
             },
             "url": {
               "raw": "{{budgetBaseUrl}}/budgets",
@@ -305,7 +468,9 @@
                 "exec": [
                   "var date = new Date();",
                   "date.setFullYear(date.getFullYear() + 1);",
-                  "pm.environment.set(\"goal_deadline\", date.toISOString().split('T')[0]);"
+                  "pm.environment.set(\"goal_deadline\", date.toISOString().split('T')[0]);",
+                  "pm.request.headers.add({ key: 'Authorization', value: 'Bearer ' + pm.environment.get('jwt_token') });",
+                  "pm.request.headers.add({ key: 'X-User-Id', value: pm.environment.get('user_id') });"
                 ],
                 "type": "text/javascript"
               }
@@ -325,8 +490,7 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "X-User-Id", "value": "1" }
+              { "key": "Content-Type", "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
@@ -343,6 +507,16 @@
           "name": "Get Goal by ID (GET)",
           "event": [
             {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.request.headers.add({ key: 'Authorization', value: 'Bearer ' + pm.environment.get('jwt_token') });",
+                  "pm.request.headers.add({ key: 'X-User-Id', value: pm.environment.get('user_id') });"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
               "listen": "test",
               "script": {
                 "exec": [
@@ -356,9 +530,7 @@
           ],
           "request": {
             "method": "GET",
-            "header": [
-              { "key": "X-User-Id", "value": "1" }
-            ],
+            "header": [],
             "url": {
               "raw": "{{goalBaseUrl}}/goals/{{goal_id}}",
               "host": ["{{goalBaseUrl}}"],
@@ -369,6 +541,16 @@
         {
           "name": "Update Goal (PUT)",
           "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.request.headers.add({ key: 'Authorization', value: 'Bearer ' + pm.environment.get('jwt_token') });",
+                  "pm.request.headers.add({ key: 'X-User-Id', value: pm.environment.get('user_id') });"
+                ],
+                "type": "text/javascript"
+              }
+            },
             {
               "listen": "test",
               "script": {
@@ -384,8 +566,7 @@
           "request": {
             "method": "PUT",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "X-User-Id", "value": "1" }
+              { "key": "Content-Type", "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
@@ -402,6 +583,16 @@
           "name": "Contribute to Goal (POST)",
           "event": [
             {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.request.headers.add({ key: 'Authorization', value: 'Bearer ' + pm.environment.get('jwt_token') });",
+                  "pm.request.headers.add({ key: 'X-User-Id', value: pm.environment.get('user_id') });"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
               "listen": "test",
               "script": {
                 "exec": [
@@ -416,8 +607,7 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "X-User-Id", "value": "1" }
+              { "key": "Content-Type", "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
@@ -434,6 +624,16 @@
           "name": "Get Active Goals (GET)",
           "event": [
             {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.request.headers.add({ key: 'Authorization', value: 'Bearer ' + pm.environment.get('jwt_token') });",
+                  "pm.request.headers.add({ key: 'X-User-Id', value: pm.environment.get('user_id') });"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
               "listen": "test",
               "script": {
                 "exec": [
@@ -447,9 +647,7 @@
           ],
           "request": {
             "method": "GET",
-            "header": [
-              { "key": "X-User-Id", "value": "1" }
-            ],
+            "header": [],
             "url": {
               "raw": "{{goalBaseUrl}}/goals/active?year={{budget_year}}&month={{budget_month}}",
               "host": ["{{goalBaseUrl}}"],
@@ -465,6 +663,16 @@
           "name": "Delete Goal (DELETE)",
           "event": [
             {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.request.headers.add({ key: 'Authorization', value: 'Bearer ' + pm.environment.get('jwt_token') });",
+                  "pm.request.headers.add({ key: 'X-User-Id', value: pm.environment.get('user_id') });"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
               "listen": "test",
               "script": {
                 "exec": [
@@ -476,9 +684,7 @@
           ],
           "request": {
             "method": "DELETE",
-            "header": [
-              { "key": "X-User-Id", "value": "1" }
-            ],
+            "header": [],
             "url": {
               "raw": "{{goalBaseUrl}}/goals/{{goal_id}}",
               "host": ["{{goalBaseUrl}}"],
@@ -495,6 +701,16 @@
           "name": "1. Sync Transactions (Import) (POST)",
           "event": [
             {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.request.headers.add({ key: 'Authorization', value: 'Bearer ' + pm.environment.get('jwt_token') });",
+                  "pm.request.headers.add({ key: 'X-User-Id', value: pm.environment.get('user_id') });"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
               "listen": "test",
               "script": {
                 "exec": [
@@ -503,7 +719,6 @@
                   "});",
                   "",
                   "// BUSY WAIT: Даем 3 секунды асинхронному сервису на сохранение данных в БД",
-                  "// Это костыль для Postman Runner/Newman, так как они выполняют запросы сразу",
                   "var end = Date.now() + 3000;",
                   "while (Date.now() < end);"
                 ],
@@ -514,8 +729,7 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Accept", "value": "application/json" },
-              { "key": "X-User-Id", "value": "1" }
+              { "key": "Accept", "value": "application/json" }
             ],
             "body": {
               "mode": "none"
@@ -535,6 +749,16 @@
           "name": "2. Get List and Find Real ID",
           "event": [
             {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.request.headers.add({ key: 'Authorization', value: 'Bearer ' + pm.environment.get('jwt_token') });",
+                  "pm.request.headers.add({ key: 'X-User-Id', value: pm.environment.get('user_id') });"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
               "listen": "test",
               "script": {
                 "exec": [
@@ -544,8 +768,6 @@
                   "if(json.content && json.content.length > 0) {",
                   "    pm.environment.set(\"real_tx_id\", json.content[0].id);",
                   "} else {",
-                  "    // Fail if empty, otherwise ID 1 will likely cause 404 in next tests",
-                  "    // But keeping fallback for now to see failure downstream",
                   "    console.log(\"WARNING: No transactions found after sync!\");",
                   "    pm.environment.set(\"real_tx_id\", 1);",
                   "}"
@@ -556,9 +778,7 @@
           ],
           "request": {
             "method": "GET",
-            "header": [
-              { "key": "X-User-Id", "value": "1" }
-            ],
+            "header": [],
             "url": {
               "raw": "{{transactionBaseUrl}}/transactions?page=0&size=5",
               "host": ["{{transactionBaseUrl}}"],
@@ -574,6 +794,16 @@
           "name": "3. Get Transaction by ID (GET)",
           "event": [
             {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.request.headers.add({ key: 'Authorization', value: 'Bearer ' + pm.environment.get('jwt_token') });",
+                  "pm.request.headers.add({ key: 'X-User-Id', value: pm.environment.get('user_id') });"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
               "listen": "test",
               "script": {
                 "exec": [
@@ -587,9 +817,7 @@
           ],
           "request": {
             "method": "GET",
-            "header": [
-              { "key": "X-User-Id", "value": "1" }
-            ],
+            "header": [],
             "url": {
               "raw": "{{transactionBaseUrl}}/transactions/{{real_tx_id}}",
               "host": ["{{transactionBaseUrl}}"],
@@ -601,12 +829,22 @@
           "name": "4. Change Transaction Category (PATCH)",
           "event": [
             {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.request.headers.add({ key: 'Authorization', value: 'Bearer ' + pm.environment.get('jwt_token') });",
+                  "pm.request.headers.add({ key: 'X-User-Id', value: pm.environment.get('user_id') });"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
               "listen": "test",
               "script": {
                 "exec": [
                   "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
                   "var json = pm.response.json();",
-                  "// 999 is system category ID (often 'Uncategorized')",
+                  "// 999 is system category ID ('Не распределено')",
                   "pm.expect(json.category.id).to.eql(999);"
                 ],
                 "type": "text/javascript"
@@ -616,8 +854,7 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "X-User-Id", "value": "1" }
+              { "key": "Content-Type", "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
@@ -633,6 +870,16 @@
         {
           "name": "5. Get Total Spent for Category (GET)",
           "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.request.headers.add({ key: 'Authorization', value: 'Bearer ' + pm.environment.get('jwt_token') });",
+                  "pm.request.headers.add({ key: 'X-User-Id', value: pm.environment.get('user_id') });"
+                ],
+                "type": "text/javascript"
+              }
+            },
             {
               "listen": "test",
               "script": {
@@ -650,9 +897,7 @@
           ],
           "request": {
             "method": "GET",
-            "header": [
-              { "key": "X-User-Id", "value": "1" }
-            ],
+            "header": [],
             "url": {
               "raw": "{{transactionBaseUrl}}/transactions/categories/1/total",
               "host": ["{{transactionBaseUrl}}"],
@@ -669,6 +914,16 @@
           "name": "Get Main Dashboard (GET)",
           "event": [
             {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.request.headers.add({ key: 'Authorization', value: 'Bearer ' + pm.environment.get('jwt_token') });",
+                  "pm.request.headers.add({ key: 'X-User-Id', value: pm.environment.get('user_id') });"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
               "listen": "test",
               "script": {
                 "exec": [
@@ -683,9 +938,7 @@
           ],
           "request": {
             "method": "GET",
-            "header": [
-              { "key": "X-User-Id", "value": "1" }
-            ],
+            "header": [],
             "url": {
               "raw": "{{dashboardBaseUrl}}/dashboard/{{budget_year}}/{{budget_month}}",
               "host": ["{{dashboardBaseUrl}}"],
@@ -702,6 +955,16 @@
           "name": "Delete Budget (Cleanup)",
           "event": [
             {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.request.headers.add({ key: 'Authorization', value: 'Bearer ' + pm.environment.get('jwt_token') });",
+                  "pm.request.headers.add({ key: 'X-User-Id', value: pm.environment.get('user_id') });"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
               "listen": "test",
               "script": {
                 "exec": [
@@ -715,9 +978,7 @@
           ],
           "request": {
             "method": "DELETE",
-            "header": [
-              { "key": "X-User-Id", "value": "1" }
-            ],
+            "header": [],
             "url": {
               "raw": "{{budgetBaseUrl}}/budgets/{{budget_year}}/{{budget_month}}",
               "host": ["{{budgetBaseUrl}}"],
@@ -727,11 +988,21 @@
         },
         {
           "name": "Delete Category (DELETE)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.request.headers.add({ key: 'Authorization', value: 'Bearer ' + pm.environment.get('jwt_token') });",
+                  "pm.request.headers.add({ key: 'X-User-Id', value: pm.environment.get('user_id') });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "DELETE",
-            "header": [
-              { "key": "X-User-Id", "value": "1" }
-            ],
+            "header": [],
             "url": {
               "raw": "{{budgetBaseUrl}}/categories/{{created_cat_id}}",
               "host": ["{{budgetBaseUrl}}"],
@@ -761,6 +1032,63 @@
     {
       "key": "dashboardBaseUrl",
       "value": "http://localhost:8088/api/v1",
+      "type": "string"
+    },
+    {
+      "key": "authBaseUrl",
+      "value": "http://localhost:8089/api/v1",
+      "type": "string"
+    },
+    {
+      "key": "test_email",
+      "value": "user@test.com",
+      "type": "string"
+    },
+    {
+      "key": "test_password",
+      "value": "password",
+      "type": "string"
+    },
+    {
+      "key": "test_name",
+      "value": "Test User",
+      "type": "string"
+    },
+    {
+      "key": "jwt_token",
+      "value": "",
+      "type": "string",
+      "description": "JSON Web Token for authentication"
+    },
+    {
+      "key": "user_id",
+      "value": "1",
+      "type": "string",
+      "description": "User ID extracted from JWT"
+    },
+    {
+      "key": "created_cat_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "budget_year",
+      "value": "2025",
+      "type": "string"
+    },
+    {
+      "key": "budget_month",
+      "value": "12",
+      "type": "string"
+    },
+    {
+      "key": "goal_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "real_tx_id",
+      "value": "1",
       "type": "string"
     }
   ]

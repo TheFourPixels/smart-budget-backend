@@ -4,6 +4,7 @@ import com.teamfourpixels.dto.CreateGoalRequest;
 import com.teamfourpixels.dto.GoalContributionRequest;
 import com.teamfourpixels.dto.GoalDto;
 import com.teamfourpixels.service.GoalService;
+import com.teamfourpixels.util.UserContext;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -18,48 +19,47 @@ import java.util.List;
 @RequiredArgsConstructor
 @Validated
 public class GoalController {
-    private static final Long DUMMY_USER_ID = 1L;
     private final GoalService service;
 
     @PostMapping
     public GoalDto create(@Valid @RequestBody CreateGoalRequest req) {
-        return service.create(DUMMY_USER_ID, req);
+        return service.create(UserContext.getUserId(), req);
     }
 
     @GetMapping("/active")
     public List<GoalDto> listActive(
             @RequestParam @Min(2000) @Max(2100) int year,
             @RequestParam @Min(1) @Max(12) int month) {
-        return service.listActive(DUMMY_USER_ID, year, month);
+        return service.listActive(UserContext.getUserId(), year, month);
     }
 
     @GetMapping("/completed")
     public List<GoalDto> listCompleted(
             @RequestParam @Min(2000) @Max(2100) int year,
             @RequestParam @Min(1) @Max(12) int month) {
-        return service.listCompleted(DUMMY_USER_ID, year, month);
+        return service.listCompleted(UserContext.getUserId(), year, month);
     }
 
     @GetMapping("/{id}")
     public GoalDto get(@PathVariable Long id) {
-        return service.get(DUMMY_USER_ID, id);
+        return service.get(UserContext.getUserId(), id);
     }
 
     @PostMapping("/{id}/contribute")
     public GoalDto contribute(@PathVariable Long id,
                               @Valid @RequestBody GoalContributionRequest req) {
-        return service.contribute(DUMMY_USER_ID, id, req.getAmount());
+        return service.contribute(UserContext.getUserId(), id, req.getAmount());
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable Long id) {
-        service.delete(DUMMY_USER_ID, id);
+        service.delete(UserContext.getUserId(), id);
     }
 
     @PutMapping("/{id}")
     public GoalDto update(@PathVariable Long id,
                           @Valid @RequestBody CreateGoalRequest req) {
-        return service.update(DUMMY_USER_ID, id, req);
+        return service.update(UserContext.getUserId(), id, req);
     }
 }

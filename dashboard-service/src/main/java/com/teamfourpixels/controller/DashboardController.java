@@ -2,10 +2,11 @@ package com.teamfourpixels.controller;
 
 import com.teamfourpixels.dto.DashboardResponse;
 import com.teamfourpixels.service.DashboardService;
-import jakarta.validation.constraints.Max; // <-- НОВЫЙ ИМПОРТ
-import jakarta.validation.constraints.Min; // <-- НОВЫЙ ИМПОРТ
+import com.teamfourpixels.util.UserContext;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
-import org.springframework.validation.annotation.Validated; // <-- НОВЫЙ ИМПОРТ
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -20,6 +21,6 @@ public class DashboardController {
             @PathVariable @Min(2000) @Max(2100) int year,
             @PathVariable @Min(1) @Max(12) int month) {
 
-        return service.getDashboard(year, month);
+        return service.getDashboard(UserContext.getUserId(), year, month);
     }
 }

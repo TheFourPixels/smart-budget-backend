@@ -16,7 +16,7 @@ spring:
       hibernate.format_sql: true
 
 jwt:
-  secret: secret-key
+  secret: ${JWT_SECRET}
   expiration: 3600000
 
 management:
