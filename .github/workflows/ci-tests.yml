@@ -35,7 +35,14 @@ jobs:
           echo "DB_USER=postgres" >> .env
 
       - name: Start Services (DB and Spring Apps)
-        run: docker compose up -d --wait
+        run: docker compose up -d --build
+
+      - name: Wait for Budget Service to be healthy
+        uses: nev7n/wait_for_response@v1
+        with:
+          url: http://localhost:8081/actuator/health
+          interval: 10000
+          timeout: 120000
 
       - name: Install Newman and dependencies
         run: npm install -g newman newman-reporter-htmlextra
@@ -43,7 +50,6 @@ jobs:
       - name: Run Postman Collection via Newman
         run: |
           newman run postman/API-SmartBudget.json \
-            --env-var "authBaseUrl=http://localhost:8089/api/v1" \
             --env-var "budgetBaseUrl=http://localhost:8081/api/v1" \
             --env-var "transactionBaseUrl=http://localhost:8083/api/v1" \
             --env-var "goalBaseUrl=http://localhost:8087/api/v1" \
@@ -51,7 +57,7 @@ jobs:
             --reporters cli
 
       - name: Dump Docker Logs on Failure
-        if: failure()
+        if: always()
         run: docker compose logs
 
       - name: Stop Services
