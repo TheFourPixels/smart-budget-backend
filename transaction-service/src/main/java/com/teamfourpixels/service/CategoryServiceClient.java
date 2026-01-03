@@ -3,7 +3,9 @@ package com.teamfourpixels.service;
 import com.teamfourpixels.dto.CategoryDto;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
@@ -19,9 +21,17 @@ public class CategoryServiceClient implements CategoryQueryService {
             throw new EntityNotFoundException("Category ID cannot be null or zero.");
         }
 
+        String jwt = "";
+        try {
+            jwt = (String) SecurityContextHolder.getContext().getAuthentication().getCredentials();
+        } catch (Exception e) {
+            //если вызываем из async без контекста можно логировать или обрабатывать
+        }
+
         try {
             return budgetWebClient.get()
                     .uri("/categories/{id}", categoryId)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwt) // <---
                     .retrieve()
                     .onStatus(status -> status == HttpStatus.NOT_FOUND, response -> {
                         throw new EntityNotFoundException("Категория не найдена с ID: " + categoryId);

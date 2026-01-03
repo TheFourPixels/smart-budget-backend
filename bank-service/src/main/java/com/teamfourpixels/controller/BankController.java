@@ -21,8 +21,6 @@ public class BankController {
     public List<TransactionDto> fetchTransactions(
             @RequestParam int year,
             @RequestParam int month) {
-
-        //потом здесь сделаю проверку авторизации пользователя
         return bankDataGenerator.fetchTransactions(year, month);
     }
 }

@@ -1,0 +1,24 @@
+server:
+  port: 8089
+
+spring:
+  application:
+    name: auth-service
+  datasource:
+    url: jdbc:postgresql://db:5432/smartbudget
+    username: postgres
+    password: 12345
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: none
+
+jwt:
+  secret: ${JWT_SECRET}
+  expiration: 3600000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info

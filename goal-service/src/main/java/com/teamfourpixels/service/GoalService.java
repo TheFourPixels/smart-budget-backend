@@ -7,8 +7,10 @@ import com.teamfourpixels.mapper.GoalMapper;
 import com.teamfourpixels.repository.GoalRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -61,10 +63,14 @@ public class GoalService {
     }
 
     private void checkBudgetExists(Long userId, int year, int month) {
+        // Получаем токен из текущего контекста
+        String jwt = (String) SecurityContextHolder.getContext().getAuthentication().getCredentials();
+
         try {
             budgetClient.get()
                     .uri("/budgets/{year}/{month}", year, month)
                     .header(USER_ID_HEADER, userId.toString())
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwt) // <--- Добавляем заголовок
                     .retrieve()
                     .onStatus(status -> status == HttpStatus.NOT_FOUND,
                             response -> Mono.error(new IllegalArgumentException(

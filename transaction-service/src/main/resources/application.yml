@@ -22,7 +22,7 @@ service:
     base-url: ${BANK_SERVICE_URL:http://bank-service:8085/api/v1}
 
 jwt:
-  secret: secret-key
+  secret: ${JWT_SECRET}
   expiration: 3600000
 
 management:

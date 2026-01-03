@@ -1,7 +1,10 @@
 package com.teamfourpixels.controller;
 
-import com.teamfourpixels.dto.*;
+import com.teamfourpixels.dto.BudgetDto;
+import com.teamfourpixels.dto.CreateBudgetRequest;
+import com.teamfourpixels.dto.DashboardDataDto;
 import com.teamfourpixels.service.BudgetService;
+import com.teamfourpixels.util.UserContext;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,18 +20,13 @@ import java.math.BigDecimal;
 public class BudgetController {
 
     private final BudgetService budgetService;
-    private static final Long DUMMY_USER_ID = 1L;
 
     @PostMapping
-    public BudgetDto createOrUpdateBudget(
-            @Valid @RequestBody CreateBudgetRequest request) {
-
-        log.debug("Creating budget for {}/{}, totalIncome: {}, limits: {}",
-                request.getYear(), request.getMonth(),
-                request.getTotalIncome(), request.getLimits());
+    public BudgetDto createOrUpdateBudget(@Valid @RequestBody CreateBudgetRequest request) {
+        log.debug("Creating budget for user {}, {}/{}", UserContext.getUserId(), request.getYear(), request.getMonth());
 
         return budgetService.createOrUpdateBudget(
-                DUMMY_USER_ID,
+                UserContext.getUserId(),
                 request.getYear(),
                 request.getMonth(),
                 request
@@ -39,7 +37,7 @@ public class BudgetController {
     public BudgetDto getBudget(
             @PathVariable Integer year,
             @PathVariable Integer month) {
-        return budgetService.getBudget(DUMMY_USER_ID, year, month);
+        return budgetService.getBudget(UserContext.getUserId(), year, month);
     }
 
     @DeleteMapping("/{year}/{month}")
@@ -47,18 +45,18 @@ public class BudgetController {
     public void deleteBudget(
             @PathVariable Integer year,
             @PathVariable Integer month) {
-        budgetService.deleteBudget(DUMMY_USER_ID, year, month);
+        budgetService.deleteBudget(UserContext.getUserId(), year, month);
     }
 
     @GetMapping("/{year}/{month}/dashboard")
     public DashboardDataDto getDashboard(
             @PathVariable Integer year,
             @PathVariable Integer month) {
-        BudgetDto budget = budgetService.getBudget(DUMMY_USER_ID, year, month);
+        BudgetDto budget = budgetService.getBudget(UserContext.getUserId(), year, month);
         DashboardDataDto data = new DashboardDataDto();
         data.setBudgetPlan(budget.getTotalIncome());
         data.setTotalSpent(BigDecimal.ZERO);
-        data.setRemainingBudget(budget.getTotalIncome().subtract(data.getTotalSpent()));
+        data.setRemainingBudget(budget.getTotalIncome());
         data.setYear(year);
         data.setMonth(month);
         return data;

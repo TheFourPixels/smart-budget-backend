@@ -15,6 +15,7 @@
         <module>bank-service</module>
         <module>goal-service</module>
         <module>dashboard-service</module>
+        <module>auth-service</module>
     </modules>
 
     <properties>

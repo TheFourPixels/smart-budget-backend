@@ -4,6 +4,8 @@ import com.teamfourpixels.dto.*;
 import com.teamfourpixels.enums.LimitType;
 import com.teamfourpixels.enums.OperationType;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
@@ -13,7 +15,6 @@ import java.math.RoundingMode;
 import java.time.*;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -27,14 +28,18 @@ public class DashboardService {
     private static final int RECENT_TX_COUNT = 5;
     private static final String USER_ID_HEADER = "X-User-Id";
 
-    public DashboardResponse getDashboard(int year, int month) {
+    public DashboardResponse getDashboard(long userid, int year, int month) {
         YearMonth ym = YearMonth.of(year, month);
         Instant start = ym.atDay(1).atStartOfDay(ZoneOffset.UTC).toInstant();
         Instant end = ym.atEndOfMonth().atTime(23, 59, 59).atOffset(ZoneOffset.UTC).toInstant();
 
+        String jwt = (String) SecurityContextHolder.getContext().getAuthentication().getCredentials();
+        String authHeader = "Bearer " + jwt;
+
         BudgetDto budget = budgetClient.get()
                 .uri("/budgets/{year}/{month}", year, month)
                 .header(USER_ID_HEADER, USER_ID.toString())
+                .header(HttpHeaders.AUTHORIZATION, authHeader)
                 .retrieve()
                 .onStatus(org.springframework.http.HttpStatusCode::is4xxClientError,
                         resp -> resp.statusCode().value() == 404
@@ -52,6 +57,7 @@ public class DashboardService {
                         .queryParam("endDateMillis", end.toEpochMilli())
                         .build())
                 .header(USER_ID_HEADER, USER_ID.toString())
+                .header(HttpHeaders.AUTHORIZATION, authHeader)
                 .retrieve()
                 .bodyToFlux(TransactionDto.class)
                 .collectList()
@@ -64,6 +70,7 @@ public class DashboardService {
                         .queryParam("month", month)
                         .build())
                 .header(USER_ID_HEADER, USER_ID.toString())
+                .header(HttpHeaders.AUTHORIZATION, authHeader)
                 .retrieve()
                 .bodyToFlux(GoalDto.class)
                 .collectList()
@@ -103,12 +110,29 @@ public class DashboardService {
     }
 
     private List<CategoryStatDto> calculateCategoryStats(BudgetDto budget, List<TransactionDto> txs) {
-        Map<Long, BigDecimal> spentByCategory = txs.stream()
-                .filter(t -> t.getType() == OperationType.EXPENSE && t.getCategory() != null)
-                .collect(Collectors.groupingBy(
-                        t -> t.getCategory().getId(),
-                        Collectors.mapping(t -> t.getAmount().abs(), Collectors.reducing(BigDecimal.ZERO, BigDecimal::add))
-                ));
+        Map<Long, BigDecimal> spentByCategory = new HashMap<>();
+
+        for (TransactionDto t : txs) {
+            if (t.getType() == OperationType.EXPENSE) {
+                Long catId = t.getCategory() != null ? t.getCategory().getId() : 999L;
+
+                if (catId == -1L && t.getSplits() != null && !t.getSplits().isEmpty()) {
+                    for (SplitPartDto split : t.getSplits()) {
+                        spentByCategory.merge(
+                                split.getCategoryId(),
+                                split.getAmount(),
+                                BigDecimal::add
+                        );
+                    }
+                } else {
+                    spentByCategory.merge(
+                            catId,
+                            t.getAmount().abs(),
+                            BigDecimal::add
+                    );
+                }
+            }
+        }
 
         if (budget.getLimits() == null || budget.getLimits().isEmpty()) {
             return List.of();
@@ -125,7 +149,6 @@ public class DashboardService {
 
                     stat.setLimit(limitValue);
                     stat.setSpent(spent);
-
                     int percent = limitValue.compareTo(BigDecimal.ZERO) > 0
                             ? spent.multiply(BigDecimal.valueOf(100))
                             .divide(limitValue, 0, RoundingMode.HALF_UP)
