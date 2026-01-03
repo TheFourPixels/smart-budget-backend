@@ -28,15 +28,14 @@ jobs:
       - name: Build Project (Quiet Mode)
         run: mvn -B package --file pom.xml -DskipTests -q
 
-      - name: Start Services (DB and Spring Apps)
-        run: docker compose up -d --build
+      - name: Create .env file
+        run: |
+          echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
+          echo "DB_PASSWORD=12345" >> .env
+          echo "DB_USER=postgres" >> .env
 
-      - name: Wait for Budget Service to be healthy
-        uses: nev7n/wait_for_response@v1
-        with:
-          url: http://localhost:8081/actuator/health
-          interval: 10000
-          timeout: 120000
+      - name: Start Services (DB and Spring Apps)
+        run: docker compose up -d --wait
 
       - name: Install Newman and dependencies
         run: npm install -g newman newman-reporter-htmlextra
@@ -44,6 +43,7 @@ jobs:
       - name: Run Postman Collection via Newman
         run: |
           newman run postman/API-SmartBudget.json \
+            --env-var "authBaseUrl=http://localhost:8089/api/v1" \
             --env-var "budgetBaseUrl=http://localhost:8081/api/v1" \
             --env-var "transactionBaseUrl=http://localhost:8083/api/v1" \
             --env-var "goalBaseUrl=http://localhost:8087/api/v1" \
@@ -51,7 +51,7 @@ jobs:
             --reporters cli
 
       - name: Dump Docker Logs on Failure
-        if: always()
+        if: failure()
         run: docker compose logs
 
       - name: Stop Services
