@@ -1,0 +1,114 @@
+services:
+  db:
+    image: postgres:14-alpine
+    container_name: smartbudget_db
+    restart: always
+    environment:
+      POSTGRES_DB: ${DB_NAME}             # <-- Стандартизировано
+      POSTGRES_USER: ${DB_USER}           # <-- Стандартизировано
+      POSTGRES_PASSWORD: ${DB_PASSWORD}   # <-- Стандартизировано
+    ports:
+      - "${DB_PORT}:5432"                 # <-- Порт через переменную
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"] # <-- Проверка по тем же переменным
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  budget-service:
+    image: ${{DOCKER_USERNAME}}/smart-budget-budget:latest
+    container_name: budget_service
+    ports:
+      - "8081:8081"
+    environment:
+      # URL внутри сети Docker использует стандартный порт 5432 и имя контейнера db
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${DB_NAME}
+      SPRING_DATASOURCE_USERNAME: ${DB_USER}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      SPRING_PROFILES_ACTIVE: docker
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: always
+
+  transaction-service:
+    image: ${{DOCKER_USERNAME}}/smart-budget-transaction:latest
+    container_name: transaction_service
+    ports:
+      - "8083:8083"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${DB_NAME}
+      SPRING_DATASOURCE_USERNAME: ${DB_USER}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      SPRING_PROFILES_ACTIVE: docker
+      JWT_SECRET: ${JWT_SECRET}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: always
+
+  bank-service:
+    image: ${{DOCKER_USERNAME}}/smart-budget-bank:latest
+    container_name: bank_service
+    ports:
+      - "8085:8085"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      JWT_SECRET: ${JWT_SECRET}
+    restart: always
+
+  goal-service:
+    image: ${{DOCKER_USERNAME}}/smart-budget-goal:latest
+    container_name: goal_service
+    ports:
+      - "8087:8087"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${DB_NAME}
+      SPRING_DATASOURCE_USERNAME: ${DB_USER}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      SPRING_PROFILES_ACTIVE: docker
+      JWT_SECRET: ${JWT_SECRET}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: always
+
+  dashboard-service:
+    image: ${{DOCKER_USERNAME}}/smart-budget-dashboard:latest
+    container_name: dashboard_service
+    ports:
+      - "8088:8088"
+    environment:
+      SERVICE_BUDGET_URL: http://budget-service:8081/api/v1
+      SERVICE_TRANSACTION_URL: http://transaction-service:8083/api/v1
+      SERVICE_GOAL_URL: http://goal-service:8087/api/v1
+      SPRING_PROFILES_ACTIVE: docker
+      JWT_SECRET: ${JWT_SECRET}
+    restart: always
+
+  auth-service:
+    image: ${{DOCKER_USERNAME}}/smart-budget-auth:latest
+    container_name: auth_service
+    ports:
+      - "8089:8089"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${DB_NAME}
+      SPRING_DATASOURCE_USERNAME: ${DB_USER}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: 86400000
+      SPRING_PROFILES_ACTIVE: docker
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: always
+
+volumes:
+  postgres_data:
+
+networks:
+  default:
+    name: smartbudget_network
