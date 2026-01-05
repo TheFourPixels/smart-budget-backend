@@ -4,27 +4,26 @@ services:
     container_name: smartbudget_db
     restart: always
     environment:
-      POSTGRES_DB: ${DB_NAME}             # <-- Стандартизировано
-      POSTGRES_USER: ${DB_USER}           # <-- Стандартизировано
-      POSTGRES_PASSWORD: ${DB_PASSWORD}   # <-- Стандартизировано
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
-      - "${DB_PORT}:5432"                 # <-- Порт через переменную
+      - "${DB_PORT}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"] # <-- Проверка по тем же переменным
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
       interval: 5s
       timeout: 5s
       retries: 10
 
   budget-service:
-    image: ${{DOCKER_USERNAME}}/smart-budget-budget:latest
+    image: ${DOCKER_USERNAME}/smart-budget-budget:latest
     container_name: budget_service
     ports:
-      - "8081:8081"
+      - "${BUDGET_PORT}:${BUDGET_PORT}"
     environment:
-      # URL внутри сети Docker использует стандартный порт 5432 и имя контейнера db
-      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${DB_NAME}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
       SPRING_DATASOURCE_USERNAME: ${DB_USER}
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
@@ -35,12 +34,12 @@ services:
     restart: always
 
   transaction-service:
-    image: ${{DOCKER_USERNAME}}/smart-budget-transaction:latest
+    image: ${DOCKER_USERNAME}/smart-budget-transaction:latest
     container_name: transaction_service
     ports:
-      - "8083:8083"
+      - "${TRANSACTION_PORT}:${TRANSACTION_PORT}"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${DB_NAME}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
       SPRING_DATASOURCE_USERNAME: ${DB_USER}
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
       SPRING_PROFILES_ACTIVE: docker
@@ -51,22 +50,22 @@ services:
     restart: always
 
   bank-service:
-    image: ${{DOCKER_USERNAME}}/smart-budget-bank:latest
+    image: ${DOCKER_USERNAME}/smart-budget-bank:latest
     container_name: bank_service
     ports:
-      - "8085:8085"
+      - "${BANK_PORT}:${BANK_PORT}"
     environment:
       SPRING_PROFILES_ACTIVE: docker
       JWT_SECRET: ${JWT_SECRET}
     restart: always
 
   goal-service:
-    image: ${{DOCKER_USERNAME}}/smart-budget-goal:latest
+    image: ${DOCKER_USERNAME}/smart-budget-goal:latest
     container_name: goal_service
     ports:
-      - "8087:8087"
+      - "${GOAL_PORT}:${GOAL_PORT}"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${DB_NAME}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
       SPRING_DATASOURCE_USERNAME: ${DB_USER}
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
       SPRING_PROFILES_ACTIVE: docker
@@ -77,29 +76,29 @@ services:
     restart: always
 
   dashboard-service:
-    image: ${{DOCKER_USERNAME}}/smart-budget-dashboard:latest
+    image: ${DOCKER_USERNAME}/smart-budget-dashboard:latest
     container_name: dashboard_service
     ports:
-      - "8088:8088"
+      - "${DASHBOARD_PORT}:${DASHBOARD_PORT}"
     environment:
-      SERVICE_BUDGET_URL: http://budget-service:8081/api/v1
-      SERVICE_TRANSACTION_URL: http://transaction-service:8083/api/v1
-      SERVICE_GOAL_URL: http://goal-service:8087/api/v1
-      SPRING_PROFILES_ACTIVE: docker
+      BUDGET_SERVICE_URL: ${BUDGET_SERVICE_URL}
+      TRANSACTION_SERVICE_URL: ${TRANSACTION_SERVICE_URL}
+      GOAL_SERVICE_URL: ${GOAL_SERVICE_URL}
       JWT_SECRET: ${JWT_SECRET}
+      SPRING_PROFILES_ACTIVE: docker
     restart: always
 
   auth-service:
-    image: ${{DOCKER_USERNAME}}/smart-budget-auth:latest
+    image: ${DOCKER_USERNAME}/smart-budget-auth:latest
     container_name: auth_service
     ports:
-      - "8089:8089"
+      - "${AUTH_PORT}:${AUTH_PORT}"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${DB_NAME}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
       SPRING_DATASOURCE_USERNAME: ${DB_USER}
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
-      JWT_EXPIRATION: 86400000
+      JWT_EXPIRATION: ${JWT_EXPIRATION}
       SPRING_PROFILES_ACTIVE: docker
     depends_on:
       db:

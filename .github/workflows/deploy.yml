@@ -3,12 +3,15 @@ name: CI/CD Pipeline
 on:
   push:
     branches: [ "main", "master" ]
-  pull_request:
-    branches: [ "main", "master" ]
 
 jobs:
-  build-and-test:
+  build-and-push:
     runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ./smart-budget-backend
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -19,30 +22,10 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
           cache: maven
+          cache-dependency-path: smart-budget-backend/pom.xml
 
-      - name: Build and Test with Maven
-        run: mvn clean install
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: built-jars
-          path: |
-            **/target/*.jar
-            !**/target/original-*.jar
-
-  build-push-docker:
-    needs: build-and-test
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push'
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: built-jars
+      - name: Build with Maven
+        run: mvn clean package -DskipTests
 
       - name: Login to Docker Hub
         uses: docker/login-action@v3
@@ -53,49 +36,48 @@ jobs:
       - name: Build & Push Auth Service
         uses: docker/build-push-action@v5
         with:
-          context: ./auth-service
+          context: ./smart-budget-backend/auth-service
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/smart-budget-auth:latest
 
       - name: Build & Push Budget Service
         uses: docker/build-push-action@v5
         with:
-          context: ./budget-service
+          context: ./smart-budget-backend/budget-service
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/smart-budget-budget:latest
 
       - name: Build & Push Transaction Service
         uses: docker/build-push-action@v5
         with:
-          context: ./transaction-service
+          context: ./smart-budget-backend/transaction-service
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/smart-budget-transaction:latest
 
       - name: Build & Push Bank Service
         uses: docker/build-push-action@v5
         with:
-          context: ./bank-service
+          context: ./smart-budget-backend/bank-service
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/smart-budget-bank:latest
 
       - name: Build & Push Goal Service
         uses: docker/build-push-action@v5
         with:
-          context: ./goal-service
+          context: ./smart-budget-backend/goal-service
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/smart-budget-goal:latest
 
       - name: Build & Push Dashboard Service
         uses: docker/build-push-action@v5
         with:
-          context: ./dashboard-service
+          context: ./smart-budget-backend/dashboard-service
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/smart-budget-dashboard:latest
 
   deploy-to-yandex:
-    needs: build-push-docker
+    needs: build-and-push
     runs-on: ubuntu-latest
-    if: github.event_name == 'push'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -106,8 +88,10 @@ jobs:
           host: ${{ secrets.YC_HOST }}
           username: ${{ secrets.YC_USERNAME }}
           key: ${{ secrets.YC_SSH_KEY }}
-          source: "docker-compose.prod.yml"
+          source: "smart-budget-backend/docker-compose.prod.yml"
           target: "/home/${{ secrets.YC_USERNAME }}/app/"
+
+          strip_components: 1
 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@master
@@ -118,13 +102,25 @@ jobs:
           script: |
             cd /home/${{ secrets.YC_USERNAME }}/app/
             
-            echo "DB_USER=${{ secrets.DB_USER }}" > .env
+            echo "DB_HOST=db" > .env
+            echo "DB_USER=${{ secrets.DB_USER }}" >> .env
             echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
             echo "DB_NAME=${{ secrets.DB_NAME }}" >> .env
-            echo "DB_PORT=${{ secrets.DB_PORT }}" >> .env
+            echo "DB_PORT=5432" >> .env
+            
             echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
+            echo "JWT_EXPIRATION=${{ secrets.JWT_EXPIRATION }}" >> .env
             echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}" >> .env
+            
+            echo "AUTH_PORT=${{ secrets.AUTH_PORT }}" >> .env
+            echo "BUDGET_PORT=${{ secrets.BUDGET_PORT }}" >> .env
+            echo "TRANSACTION_PORT=${{ secrets.TRANSACTION_PORT }}" >> .env
+            echo "BANK_PORT=${{ secrets.BANK_PORT }}" >> .env
+            echo "GOAL_PORT=${{ secrets.GOAL_PORT }}" >> .env
+            echo "DASHBOARD_PORT=${{ secrets.DASHBOARD_PORT }}" >> .env
 
             docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml down
             docker compose -f docker-compose.prod.yml up -d --remove-orphans
+            
             docker image prune -f

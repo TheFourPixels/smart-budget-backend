@@ -18,87 +18,31 @@ services:
       retries: 10
       start_period: 10s
 
-  budget-service:
-    build: ./budget-service
-    container_name: budget_service
+  auth-service:
+    build: ./auth-service
+    container_name: auth_service
     ports:
-      - "${BUDGET_PORT}:${BUDGET_PORT}"
+      - "${AUTH_PORT}:${AUTH_PORT}"
     environment:
-      SERVER_PORT: ${BUDGET_PORT}
-      # Передаем переменные для использования внутри application.yml
+      SERVER_PORT: ${AUTH_PORT}
       DB_HOST: db
       DB_PORT: ${DB_PORT}
       DB_NAME: ${DB_NAME}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
-      JWT_SECRET: ${JWT_SECRET}
-      JWT_EXPIRATION: ${JWT_EXPIRATION}
-      SPRING_PROFILES_ACTIVE: docker
-    depends_on:
-      db:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:${BUDGET_PORT}/actuator/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 60s
-    restart: on-failure
-
-  transaction-service:
-    build: ./transaction-service
-    container_name: transaction_service
-    ports:
-      - "${TRANSACTION_PORT}:${TRANSACTION_PORT}"
-    environment:
-      SERVER_PORT: ${TRANSACTION_PORT}
-      DB_HOST: db
-      DB_PORT: ${DB_PORT}
-      DB_NAME: ${DB_NAME}
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-      JWT_SECRET: ${JWT_SECRET}
-      JWT_EXPIRATION: ${JWT_EXPIRATION}
-      # URLs для клиентов
       BUDGET_SERVICE_URL: ${BUDGET_SERVICE_URL}
-      BANK_SERVICE_URL: ${BANK_SERVICE_URL}
+      TRANSACTION_SERVICE_URL: ${TRANSACTION_SERVICE_URL}
+      GOAL_SERVICE_URL: ${GOAL_SERVICE_URL}
+      JWT_SECRET: ${JWT_SECRET}
       SPRING_PROFILES_ACTIVE: docker
     depends_on:
       db:
         condition: service_healthy
-      budget-service:
-        condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:${TRANSACTION_PORT}/actuator/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8089/actuator/health" ]
       interval: 10s
       timeout: 5s
-      retries: 10
-      start_period: 70s
-    restart: on-failure
-
-  bank-service:
-    build: ./bank-service
-    container_name: bank_service
-    ports:
-      - "${BANK_PORT}:${BANK_PORT}"
-    environment:
-      SERVER_PORT: ${BANK_PORT}
-      DB_HOST: db
-      DB_PORT: ${DB_PORT}
-      DB_NAME: ${DB_NAME}
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-      SPRING_PROFILES_ACTIVE: docker
-    depends_on:
-      db:
-        condition: service_healthy
-      transaction-service:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:${BANK_PORT}/actuator/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
+      retries: 5
       start_period: 40s
     restart: on-failure
 
@@ -120,12 +64,99 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      auth-service:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:${GOAL_PORT}/actuator/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8087/actuator/health"]
       interval: 10s
       timeout: 5s
-      retries: 10
-      start_period: 50s
+      retries: 5
+      start_period: 40s
+    restart: on-failure
+
+  budget-service:
+    build: ./budget-service
+    container_name: budget_service
+    ports:
+      - "${BUDGET_PORT}:${BUDGET_PORT}"
+    environment:
+      SERVER_PORT: ${BUDGET_PORT}
+      DB_HOST: db
+      DB_PORT: ${DB_PORT}
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION}
+      SPRING_PROFILES_ACTIVE: docker
+    depends_on:
+      db:
+        condition: service_healthy
+      goal-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    restart: on-failure
+
+  transaction-service:
+    build: ./transaction-service
+    container_name: transaction_service
+    ports:
+      - "${TRANSACTION_PORT}:${TRANSACTION_PORT}"
+    environment:
+      SERVER_PORT: ${TRANSACTION_PORT}
+      DB_HOST: db
+      DB_PORT: ${DB_PORT}
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION}
+      BUDGET_SERVICE_URL: ${BUDGET_SERVICE_URL}
+      BANK_SERVICE_URL: ${BANK_SERVICE_URL}
+      SPRING_PROFILES_ACTIVE: docker
+    depends_on:
+      db:
+        condition: service_healthy
+      budget-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    restart: on-failure
+
+  bank-service:
+    build: ./bank-service
+    container_name: bank_service
+    ports:
+      - "${BANK_PORT}:${BANK_PORT}"
+    environment:
+      SERVER_PORT: ${BANK_PORT}
+      DB_HOST: db
+      DB_PORT: ${DB_PORT}
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      SPRING_PROFILES_ACTIVE: docker
+    depends_on:
+      db:
+        condition: service_healthy
+      transaction-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8085/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
     restart: on-failure
 
   dashboard-service:
@@ -140,10 +171,10 @@ services:
       DB_NAME: ${DB_NAME}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
-      # Ссылки на другие сервисы
       BUDGET_SERVICE_URL: ${BUDGET_SERVICE_URL}
       TRANSACTION_SERVICE_URL: ${TRANSACTION_SERVICE_URL}
       GOAL_SERVICE_URL: ${GOAL_SERVICE_URL}
+      JWT_SECRET: ${JWT_SECRET}
       SPRING_PROFILES_ACTIVE: docker
     depends_on:
       budget-service:
@@ -158,29 +189,6 @@ services:
       timeout: 5s
       retries: 10
       start_period: 80s
-    restart: on-failure
-
-  auth-service:
-    build: ./auth-service
-    container_name: auth_service
-    ports:
-      - "8089:8089"
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/smartbudget
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: 12345
-      JWT_SECRET: ${JWT_SECRET}
-      JWT_EXPIRATION: 86400000
-      SPRING_PROFILES_ACTIVE: docker
-    depends_on:
-      db:
-        condition: service_healthy
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8089/actuator/health" ]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 120s
     restart: on-failure
 
 volumes:
