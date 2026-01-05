@@ -22,23 +22,47 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
           cache: maven
+          cache-dependency-path: smart-budget-backend/pom.xml
 
       - name: Build Project (Quiet Mode)
-        run: mvn -B package --file pom.xml -DskipTests -q
-
-      - name: Create .env file
         run: |
+          cd smart-budget-backend
+          mvn -B package -DskipTests -q
+
+      - name: Create .env file for Docker
+        run: |
+          cd smart-budget-backend
+          
           echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
-          echo "DB_PASSWORD=12345" >> .env
-          echo "DB_USER=postgres" >> .env
+          echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
+          echo "DB_USER=${{ secrets.DB_USER }}" >> .env
+
+          echo "DB_HOST=${{ secrets.DB_HOST }}" >> .env
+          echo "DB_NAME=${{ secrets.DB_NAME }}" >> .env
+          echo "DB_PORT=${{ secrets.DB_PORT }}" >> .env
+          echo "JWT_EXPIRATION=${{ secrets.JWT_EXPIRATION }}" >> .env
+
+          echo "BUDGET_PORT=${{ secrets.BUDGET_PORT }}" >> .env
+          echo "TRANSACTION_PORT=${{ secrets.TRANSACTION_PORT }}" >> .env
+          echo "BANK_PORT=${{ secrets.BANK_PORT }}" >> .env
+          echo "GOAL_PORT=${{ secrets.GOAL_PORT }}" >> .env
+          echo "DASHBOARD_PORT=${{ secrets.DASHBOARD_PORT }}" >> .env
+          echo "AUTH_PORT=${{ secrets.AUTH_PORT }}" >> .env
+
+          echo "BUDGET_SERVICE_URL=${{ secrets.BUDGET_SERVICE_URL }}" >> .env
+          echo "TRANSACTION_SERVICE_URL=${{ secrets.TRANSACTION_SERVICE_URL }}" >> .env
+          echo "BANK_SERVICE_URL=${{ secrets.BANK_SERVICE_URL }}" >> .env
+          echo "GOAL_SERVICE_URL=${{ secrets.GOAL_SERVICE_URL }}" >> .env
 
       - name: Start Services (DB and Spring Apps)
-        run: docker compose up -d --build
+        run: |
+          cd smart-budget-backend
+          docker compose up -d --build
 
       - name: Wait for Budget Service to be healthy
         uses: nev7n/wait_for_response@v1
         with:
-          url: http://localhost:8081/actuator/health
+          url: http://localhost:${{ secrets.BUDGET_PORT }}/actuator/health
           interval: 10000
           timeout: 120000
 
@@ -47,17 +71,22 @@ jobs:
 
       - name: Run Postman Collection via Newman
         run: |
-          newman run postman/API-SmartBudget.json \
-            --env-var "budgetBaseUrl=http://localhost:8081/api/v1" \
-            --env-var "transactionBaseUrl=http://localhost:8083/api/v1" \
-            --env-var "goalBaseUrl=http://localhost:8087/api/v1" \
-            --env-var "dashboardBaseUrl=http://localhost:8088/api/v1" \
+          newman run smart-budget-backend/postman/API-SmartBudget.json \
+            --env-var "budgetBaseUrl=http://localhost:${{ secrets.BUDGET_PORT }}/api/v1" \
+            --env-var "transactionBaseUrl=http://localhost:${{ secrets.TRANSACTION_PORT }}/api/v1" \
+            --env-var "goalBaseUrl=http://localhost:${{ secrets.GOAL_PORT }}/api/v1" \
+            --env-var "dashboardBaseUrl=http://localhost:${{ secrets.DASHBOARD_PORT }}/api/v1" \
+            --env-var "authBaseUrl=http://localhost:${{ secrets.AUTH_PORT }}/api/v1" \
             --reporters cli
 
       - name: Dump Docker Logs on Failure
-        if: always()
-        run: docker compose logs
+        if: failure()
+        run: |
+          cd smart-budget-backend
+          docker compose logs
 
       - name: Stop Services
         if: always()
-        run: docker compose down
+        run: |
+          cd smart-budget-backend
+          docker compose down
