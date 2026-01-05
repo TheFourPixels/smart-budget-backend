@@ -1,0 +1,38 @@
+server:
+  port: ${SERVER_PORT}
+
+spring:
+  application:
+    name: dashboard-service
+  datasource:
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+  jpa:
+    enable: false
+    show-sql: false
+    liquibase:
+      enabled: false
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+      - org.springframework.boot.autoconfigure.liquibase.LiquibaseAutoConfiguration
+
+service:
+  budget:
+    url: ${BUDGET_SERVICE_URL}
+  transaction:
+    url: ${TRANSACTION_SERVICE_URL}
+  goal:
+    url: ${GOAL_SERVICE_URL}
+
+jwt:
+  secret: ${JWT_SECRET}
+  expiration: 3600000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
