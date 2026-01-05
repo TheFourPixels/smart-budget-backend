@@ -7,9 +7,6 @@ on:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./smart-budget-backend
 
     steps:
       - name: Checkout code
@@ -21,7 +18,7 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
           cache: maven
-          cache-dependency-path: smart-budget-backend/pom.xml
+          cache-dependency-path: pom.xml
 
       - name: Build with Maven
         run: mvn clean package -DskipTests
@@ -35,42 +32,42 @@ jobs:
       - name: Build & Push Auth Service
         uses: docker/build-push-action@v5
         with:
-          context: ./smart-budget-backend/auth-service
+          context: ./auth-service
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/smart-budget-auth:latest
 
       - name: Build & Push Budget Service
         uses: docker/build-push-action@v5
         with:
-          context: ./smart-budget-backend/budget-service
+          context: ./budget-service
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/smart-budget-budget:latest
 
       - name: Build & Push Transaction Service
         uses: docker/build-push-action@v5
         with:
-          context: ./smart-budget-backend/transaction-service
+          context: ./transaction-service
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/smart-budget-transaction:latest
 
       - name: Build & Push Bank Service
         uses: docker/build-push-action@v5
         with:
-          context: ./smart-budget-backend/bank-service
+          context: ./bank-service
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/smart-budget-bank:latest
 
       - name: Build & Push Goal Service
         uses: docker/build-push-action@v5
         with:
-          context: ./smart-budget-backend/goal-service
+          context: ./goal-service
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/smart-budget-goal:latest
 
       - name: Build & Push Dashboard Service
         uses: docker/build-push-action@v5
         with:
-          context: ./smart-budget-backend/dashboard-service
+          context: ./dashboard-service
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/smart-budget-dashboard:latest
 
@@ -87,9 +84,9 @@ jobs:
           host: ${{ secrets.YC_HOST }}
           username: ${{ secrets.YC_USERNAME }}
           key: ${{ secrets.YC_SSH_KEY }}
-          source: "smart-budget-backend/docker-compose.prod.yml"
+          source: "docker-compose.prod.yml"
           target: "/home/${{ secrets.YC_USERNAME }}/app/"
-          strip_components: 1
+          strip_components: 0
 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@master
@@ -104,7 +101,7 @@ jobs:
             echo "DB_USER=${{ secrets.DB_USER }}" >> .env
             echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
             echo "DB_NAME=${{ secrets.DB_NAME }}" >> .env
-            echo "DB_PORT=5432" >> .env
+            echo "DB_PORT=${{ secrets.DB_PORT }}" >> .env
             
             echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
             echo "JWT_EXPIRATION=${{ secrets.JWT_EXPIRATION }}" >> .env
@@ -116,7 +113,7 @@ jobs:
             echo "BANK_PORT=${{ secrets.BANK_PORT }}" >> .env
             echo "GOAL_PORT=${{ secrets.GOAL_PORT }}" >> .env
             echo "DASHBOARD_PORT=${{ secrets.DASHBOARD_PORT }}" >> .env
-            
+
             echo "BUDGET_SERVICE_URL=http://budget_service:${{ secrets.BUDGET_PORT }}/api/v1" >> .env
             echo "TRANSACTION_SERVICE_URL=http://transaction_service:${{ secrets.TRANSACTION_PORT }}/api/v1" >> .env
             echo "GOAL_SERVICE_URL=http://goal_service:${{ secrets.GOAL_PORT }}/api/v1" >> .env

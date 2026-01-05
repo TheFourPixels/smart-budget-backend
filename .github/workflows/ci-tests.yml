@@ -22,17 +22,13 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
           cache: maven
-          cache-dependency-path: smart-budget-backend/pom.xml
+          cache-dependency-path: pom.xml
 
       - name: Build Project (Quiet Mode)
-        run: |
-          cd smart-budget-backend
-          mvn -B package -DskipTests -q
+        run: mvn -B package -DskipTests -q
 
       - name: Create .env file for Docker
         run: |
-          cd smart-budget-backend
-          
           echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
           echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
           echo "DB_USER=${{ secrets.DB_USER }}" >> .env
@@ -55,9 +51,7 @@ jobs:
           echo "GOAL_SERVICE_URL=${{ secrets.GOAL_SERVICE_URL }}" >> .env
 
       - name: Start Services (DB and Spring Apps)
-        run: |
-          cd smart-budget-backend
-          docker compose up -d --build
+        run: docker compose up -d --build
 
       - name: Wait for Budget Service to be healthy
         uses: nev7n/wait_for_response@v1
@@ -71,7 +65,7 @@ jobs:
 
       - name: Run Postman Collection via Newman
         run: |
-          newman run smart-budget-backend/postman/API-SmartBudget.json \
+          newman run postman/API-SmartBudget.json \
             --env-var "budgetBaseUrl=http://localhost:${{ secrets.BUDGET_PORT }}/api/v1" \
             --env-var "transactionBaseUrl=http://localhost:${{ secrets.TRANSACTION_PORT }}/api/v1" \
             --env-var "goalBaseUrl=http://localhost:${{ secrets.GOAL_PORT }}/api/v1" \
@@ -81,12 +75,8 @@ jobs:
 
       - name: Dump Docker Logs on Failure
         if: failure()
-        run: |
-          cd smart-budget-backend
-          docker compose logs
+        run: docker compose logs
 
       - name: Stop Services
         if: always()
-        run: |
-          cd smart-budget-backend
-          docker compose down
+        run: docker compose down
