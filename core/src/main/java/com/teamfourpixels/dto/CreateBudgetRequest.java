@@ -1,27 +1,37 @@
 package com.teamfourpixels.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
-import jakarta.validation.constraints.*;
+
 import java.math.BigDecimal;
 import java.util.List;
 
 @Data
+@Schema(description = "Запрос на создание или обновление бюджета")
 public class CreateBudgetRequest {
 
-    @NotNull(message = "Year is required")
-    @Min(value = 2000, message = "Year must be >= 2000")
-    @Max(value = 2100, message = "Year must be <= 2100")
+    @NotNull
+    @Min(2000)
+    @Max(2100)
+    @Schema(description = "Год", example = "2025")
     private Integer year;
 
-    @NotNull(message = "Month is required")
-    @Min(value = 1, message = "Month must be >= 1")
-    @Max(value = 12, message = "Month must be <= 12")
+    @NotNull
+    @Min(1)
+    @Max(12)
+    @Schema(description = "Месяц (1-12)", example = "12")
     private Integer month;
 
-    @NotNull(message = "Total income is required")
+    @NotNull
     @DecimalMin(value = "0.0", inclusive = false)
+    @Schema(description = "Общий доход на месяц", example = "150000.00")
     private BigDecimal totalIncome;
 
-    @NotNull(message = "Limits list cannot be null")
+    @NotNull
+    @Schema(description = "Список лимитов по категориям")
     private List<LimitDto> limits;
 }
