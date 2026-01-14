@@ -83,7 +83,7 @@ jobs:
         with:
           host: ${{ secrets.YC_HOST }}
           username: ${{ secrets.YC_USERNAME }}
-          key: ${{ secrets.YC_SSH_KEY }}
+          key: ${{ secrets.YC_SSH_PRIVATE_KEY }}
           source: "docker-compose.prod.yml"
           target: "/home/${{ secrets.YC_USERNAME }}/app/"
           strip_components: 0
@@ -93,7 +93,7 @@ jobs:
         with:
           host: ${{ secrets.YC_HOST }}
           username: ${{ secrets.YC_USERNAME }}
-          key: ${{ secrets.YC_SSH_KEY }}
+          key: ${{ secrets.YC_SSH_PRIVATE_KEY }}
           script: |
             cd /home/${{ secrets.YC_USERNAME }}/app/
             
@@ -113,12 +113,12 @@ jobs:
             echo "BANK_PORT=${{ secrets.BANK_PORT }}" >> .env
             echo "GOAL_PORT=${{ secrets.GOAL_PORT }}" >> .env
             echo "DASHBOARD_PORT=${{ secrets.DASHBOARD_PORT }}" >> .env
-
-            echo "BUDGET_SERVICE_URL=http://budget_service:${{ secrets.BUDGET_PORT }}/api/v1" >> .env
-            echo "TRANSACTION_SERVICE_URL=http://transaction_service:${{ secrets.TRANSACTION_PORT }}/api/v1" >> .env
-            echo "GOAL_SERVICE_URL=http://goal_service:${{ secrets.GOAL_PORT }}/api/v1" >> .env
-            echo "BANK_SERVICE_URL=http://bank_service:${{ secrets.BANK_PORT }}/api/v1" >> .env
-
+            
+            echo "BUDGET_SERVICE_URL=http://budget-service:${{ secrets.BUDGET_PORT }}/api/v1" >> .env
+            echo "TRANSACTION_SERVICE_URL=http://transaction-service:${{ secrets.TRANSACTION_PORT }}/api/v1" >> .env
+            echo "GOAL_SERVICE_URL=http://goal-service:${{ secrets.GOAL_PORT }}/api/v1" >> .env
+            echo "BANK_SERVICE_URL=http://bank-service:${{ secrets.BANK_PORT }}/api/v1" >> .env
+            
             docker compose -f docker-compose.prod.yml pull
             docker compose -f docker-compose.prod.yml down
             docker compose -f docker-compose.prod.yml up -d --remove-orphans
