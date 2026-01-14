@@ -16,7 +16,6 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
-      start_period: 10s
 
   budget-service:
     image: ${DOCKER_USERNAME}/smart-budget-budget:latest
@@ -29,7 +28,6 @@ services:
       SPRING_DATASOURCE_USERNAME: ${DB_USER}
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
-      JWT_EXPIRATION: ${JWT_EXPIRATION}
       SPRING_PROFILES_ACTIVE: docker
     depends_on:
       db:
@@ -48,9 +46,6 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
       SPRING_PROFILES_ACTIVE: docker
       JWT_SECRET: ${JWT_SECRET}
-      JWT_EXPIRATION: ${JWT_EXPIRATION}
-      BUDGET_SERVICE_URL: ${BUDGET_SERVICE_URL}
-      BANK_SERVICE_URL: ${BANK_SERVICE_URL}
     depends_on:
       db:
         condition: service_healthy
@@ -63,9 +58,6 @@ services:
       - "${BANK_PORT}:${BANK_PORT}"
     environment:
       SERVER_PORT: ${BANK_PORT}
-      SPRING_DATASOURCE_URL: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
-      SPRING_DATASOURCE_USERNAME: ${DB_USER}
-      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
       SPRING_PROFILES_ACTIVE: docker
       JWT_SECRET: ${JWT_SECRET}
     restart: always
@@ -82,8 +74,6 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
       SPRING_PROFILES_ACTIVE: docker
       JWT_SECRET: ${JWT_SECRET}
-      JWT_EXPIRATION: ${JWT_EXPIRATION}
-      BUDGET_SERVICE_URL: ${BUDGET_SERVICE_URL}
     depends_on:
       db:
         condition: service_healthy
