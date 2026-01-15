@@ -81,10 +81,23 @@
 ### Переменные окружения (Secrets)
 Для работы нужны секреты в репозитории GitHub:
 
-* `YC_HOST`, `YC_USERNAME`, `YC_SSH_PRIVATE_KEY` — доступ к ВМ
-* `DOCKER_USERNAME`, `DOCKER_PASSWORD` — доступ к реестру
-* `DB_NAME`, `DB_USER`, `DB_PASSWORD` — база данных
-* `JWT_SECRET`, `JWT_EXPIRATION` — ключи шифрования
+**Доступ к ВМ**
+- `YC_HOST`
+- `YC_USERNAME`
+- `YC_SSH_PRIVATE_KEY`
+
+**Docker Registry**
+- `DOCKER_USERNAME`
+- `DOCKER_PASSWORD`
+
+**База данных**
+- `DB_NAME`
+- `DB_USER`
+- `DB_PASSWORD`
+
+**Безопасность**
+- `JWT_SECRET`
+- `JWT_EXPIRATION`
 
 ---
 
@@ -92,3 +105,27 @@
 
 ### Автоматические тесты
 При каждом пуше в репозиторий запускаются Unit-тесты
+
+---
+
+## Локальный запуск
+
+- Установить докер
+- Создать файл `.env` с необходимыми переменными окружения
+- Запустить команду 
+```bash
+docker compose up -d --build
+```
+---
+
+## API Документация
+
+Документация **Swagger** доступна для каждого сервиса
+
+- **Auth**: http://<IP>:8089/swagger-ui/index.html
+- **Budget**: http://<IP>:8081/swagger-ui/index.html
+- **Transaction**: http://<IP>:8083/swagger-ui/index.html
+- **Goal**: http://<IP>:8087/swagger-ui/index.html
+- **Dashboard**: http://<IP>:8088/swagger-ui/index.html
+
+а также по ссылке https://app.swaggerhub.com/apis/fourpixels/SmartBudget/1.0.0#/
