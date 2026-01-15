@@ -8,6 +8,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
@@ -22,5 +24,11 @@ public class AuthController {
     @PostMapping("/login")
     public AuthResponse login(@Valid @RequestBody AuthRequest request) {
         return authService.login(request);
+    }
+
+    @PostMapping("/check-email")
+    public Map<String, Boolean> checkEmail(@RequestBody Map<String, String> request) {
+        boolean exists = authService.isEmailRegistered(request.get("email"));
+        return Map.of("isRegistered", exists);
     }
 }

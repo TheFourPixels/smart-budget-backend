@@ -48,4 +48,8 @@ public class AuthService {
         String token = jwtTokenProvider.generateToken(user.getId(), user.getEmail());
         return new AuthResponse(token, user.getId(), user.getName());
     }
+
+    public boolean isEmailRegistered(String email) {
+        return userRepository.existsByEmail(email);
+    }
 }
