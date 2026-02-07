@@ -23,4 +23,9 @@ public class MerchantNameClassificationStrategy implements ClassificationStrateg
         }
         return Optional.empty();
     }
+
+    @Override
+    public int getPriority() {
+        return 2;
+    }
 }
