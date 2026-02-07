@@ -8,7 +8,7 @@ services:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
-      - "${DB_PORT}:5432"
+      - "${DB_PORT}:${DB_PORT}"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -39,12 +39,14 @@ services:
       db:
         condition: service_healthy
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8089/actuator/health" ]
+      test: [ "CMD", "curl", "-f", "http://localhost:${AUTH_PORT}/actuator/health" ]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 40s
     restart: on-failure
+    volumes:
+      - ./uploads:/app/uploads
 
   goal-service:
     build: ./goal-service
@@ -67,7 +69,7 @@ services:
       auth-service:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8087/actuator/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:${GOAL_PORT}/actuator/health"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -95,7 +97,7 @@ services:
       goal-service:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:${BUDGET_PORT}/actuator/health"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -125,7 +127,7 @@ services:
       budget-service:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8083/actuator/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:${TRANSACTION_PORT}/actuator/health"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -152,7 +154,7 @@ services:
       transaction-service:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8085/actuator/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:${BANK_PORT}/actuator/health"]
       interval: 10s
       timeout: 5s
       retries: 5

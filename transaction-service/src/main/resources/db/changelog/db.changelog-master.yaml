@@ -3,3 +3,5 @@ databaseChangeLog:
       file: db/changelog/changes/01-create-transaction-table.sql
   - include:
       file: db/changelog/changes/02-create-categorization-rules-table.sql
+  - include:
+      file: db/changelog/changes/03-create-transaction-splits-table.sql

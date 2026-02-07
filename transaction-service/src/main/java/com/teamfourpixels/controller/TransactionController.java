@@ -2,6 +2,9 @@ package com.teamfourpixels.controller;
 
 import com.teamfourpixels.dto.*;
 import com.teamfourpixels.service.TransactionService;
+import com.teamfourpixels.util.UserContext;
+import io.swagger.v3.oas.annotations.Operation;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
@@ -16,7 +19,6 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class TransactionController {
     private final TransactionService service;
-    private static final Long DUMMY_USER_ID = 1L;
 
     @GetMapping
     public Page<TransactionDto> getTransactions(
@@ -35,7 +37,7 @@ public class TransactionController {
                 ? Instant.ofEpochMilli(endDateMillis)
                 : Instant.now();
 
-        return service.getTransactionsPage(DUMMY_USER_ID, page, size, categoryId, query, start, end);
+        return service.getTransactionsPage(UserContext.getUserId(), page, size, categoryId, query, start, end);
     }
 
     @PostMapping("/sync")
@@ -43,7 +45,7 @@ public class TransactionController {
             @RequestParam int year,
             @RequestParam int month) {
 
-        service.importAndClassifyTransactions(DUMMY_USER_ID, year, month);
+        service.importAndClassifyTransactions(UserContext.getUserId(), year, month);
 
         return ResponseEntity.status(HttpStatus.ACCEPTED)
                 .body(Map.of(
@@ -57,21 +59,28 @@ public class TransactionController {
                                          @RequestBody Map<String, Long> body) {
         Long categoryId = body.get("categoryId");
         if (categoryId == null) throw new IllegalArgumentException("categoryId required");
-        return service.updateTransactionCategory(DUMMY_USER_ID, id, categoryId);
+        return service.updateTransactionCategory(UserContext.getUserId(), id, categoryId);
+    }
+
+    @PostMapping("/{id}/split")
+    @Operation(summary = "Разделить транзакцию на части")
+    public TransactionDto splitTransaction(@PathVariable Long id,
+                                           @Valid @RequestBody SplitTransactionRequest request) {
+        return service.splitTransaction(UserContext.getUserId(), id, request);
     }
 
     @GetMapping("/{id}")
     public TransactionDto details(@PathVariable Long id) {
-        return service.getTransactionDetails(DUMMY_USER_ID, id);
+        return service.getTransactionDetails(UserContext.getUserId(), id);
     }
 
     @PostMapping
     public TransactionDto create(@RequestBody CreateTransactionRequest req) {
-        return service.createTransaction(DUMMY_USER_ID, req);
+        return service.createTransaction(UserContext.getUserId(), req);
     }
 
     @GetMapping("/categories/{categoryId}/total")
     public CategoryTotalSpentDto getTotalSpentByCategory(@PathVariable Long categoryId) {
-        return service.getTotalSpentByCategory(DUMMY_USER_ID, categoryId);
+        return service.getTotalSpentByCategory(UserContext.getUserId(), categoryId);
     }
 }
