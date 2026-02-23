@@ -50,6 +50,12 @@ jobs:
           echo "TRANSACTION_SERVICE_URL=${{ secrets.TRANSACTION_SERVICE_URL }}" >> .env
           echo "BANK_SERVICE_URL=${{ secrets.BANK_SERVICE_URL }}" >> .env
           echo "GOAL_SERVICE_URL=${{ secrets.GOAL_SERVICE_URL }}" >> .env
+          
+          echo "S3_INTERNAL_URL=http://minio:9000" >> .env
+          echo "S3_PUBLIC_URL_PREFIX=http://localhost:9000" >> .env
+          echo "S3_ACCESS_KEY=minioadmin" >> .env
+          echo "S3_SECRET_KEY=minioadmin_secret123" >> .env
+          echo "S3_BUCKET=smart-budget-avatars" >> .env
 
       - name: Start Services (DB and Spring Apps)
         run: docker compose up -d --build

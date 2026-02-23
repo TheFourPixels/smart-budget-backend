@@ -116,12 +116,15 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRATION: ${JWT_EXPIRATION}
       SPRING_PROFILES_ACTIVE: docker
+      S3_URL: ${S3_URL}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
+      S3_BUCKET: ${S3_BUCKET}
+      S3_PUBLIC_URL_PREFIX: ${S3_PUBLIC_URL_PREFIX}
     depends_on:
       db:
         condition: service_healthy
     restart: always
-    volumes:
-      - ./uploads:/app/uploads
 
 volumes:
   postgres_data:
