@@ -29,10 +29,11 @@ jobs:
 
       - name: Create .env file for Docker
         run: |
+          echo "GATEWAY_PORT=8080" >> .env
           echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
           echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
           echo "DB_USER=${{ secrets.DB_USER }}" >> .env
-          echo "DB_HOST=${{ secrets.DB_HOST }}" >> .env
+          echo "DB_HOST=db" >> .env
           echo "DB_NAME=${{ secrets.DB_NAME }}" >> .env
           echo "DB_PORT=${{ secrets.DB_PORT }}" >> .env
           echo "JWT_EXPIRATION=${{ secrets.JWT_EXPIRATION }}" >> .env
@@ -42,11 +43,13 @@ jobs:
           echo "BANK_PORT=${{ secrets.BANK_PORT }}" >> .env
           echo "GOAL_PORT=${{ secrets.GOAL_PORT }}" >> .env
           echo "DASHBOARD_PORT=${{ secrets.DASHBOARD_PORT }}" >> .env
-          echo "AUTH_SERVICE_URL=${{ secrets.AUTH_SERVICE_URL }}" >> .env
-          echo "BUDGET_SERVICE_URL=${{ secrets.BUDGET_SERVICE_URL }}" >> .env
-          echo "TRANSACTION_SERVICE_URL=${{ secrets.TRANSACTION_SERVICE_URL }}" >> .env
-          echo "BANK_SERVICE_URL=${{ secrets.BANK_SERVICE_URL }}" >> .env
-          echo "GOAL_SERVICE_URL=${{ secrets.GOAL_SERVICE_URL }}" >> .env
+          
+          echo "AUTH_SERVICE_URL=http://auth-service:${{ secrets.AUTH_PORT }}" >> .env
+          echo "BUDGET_SERVICE_URL=http://budget-service:${{ secrets.BUDGET_PORT }}" >> .env
+          echo "TRANSACTION_SERVICE_URL=http://transaction-service:${{ secrets.TRANSACTION_PORT }}" >> .env
+          echo "BANK_SERVICE_URL=http://bank-service:${{ secrets.BANK_PORT }}" >> .env
+          echo "GOAL_SERVICE_URL=http://goal-service:${{ secrets.GOAL_PORT }}" >> .env
+          echo "DASHBOARD_SERVICE_URL=http://dashboard-service:${{ secrets.DASHBOARD_PORT }}" >> .env
           
           echo "S3_URL=${{ secrets.S3_URL }}" >> .env
           echo "S3_ACCESS_KEY=${{ secrets.S3_ACCESS_KEY }}" >> .env
@@ -60,18 +63,20 @@ jobs:
         run: docker compose up -d --build
 
       - name: Wait for Services
-        run: sleep 40
+        run: sleep 45
 
       - name: Run Newman Tests
         run: |
           npm install -g newman
           newman run postman/API-SmartBudget.json \
-            --env-var "authBaseUrl=http://localhost:${{ secrets.AUTH_PORT }}/api/v1" \
+            --env-var "authBaseUrl=http://localhost:8080/api/v1/auth" \
             --reporters cli
 
       - name: Dump Logs on Failure
         if: failure()
-        run: docker compose logs auth_service
+        run: |
+          docker compose logs gateway-service
+          docker compose logs auth-service
 
       - name: Stop Services
         if: always()

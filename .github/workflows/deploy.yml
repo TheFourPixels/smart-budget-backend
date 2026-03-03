@@ -53,7 +53,7 @@ jobs:
       - name: Build & Push Bank Service
         uses: docker/build-push-action@v5
         with:
-          context: ./bank-serviceF
+          context: ./bank-service
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/smart-budget-bank:latest
 
@@ -70,6 +70,13 @@ jobs:
           context: ./dashboard-service
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/smart-budget-dashboard:latest
+
+      - name: Build & Push Gateway Service
+        uses: docker/build-push-action@v5
+        with:
+          context: ./gateway-service
+          push: true
+          tags: ${{ secrets.DOCKER_USERNAME }}/smart-budget-gateway:latest
 
   deploy-to-yandex:
     needs: build-and-push
@@ -107,6 +114,7 @@ jobs:
             echo "JWT_EXPIRATION=${{ secrets.JWT_EXPIRATION }}" >> .env
             echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}" >> .env
             
+            echo "GATEWAY_PORT=8080" >> .env
             echo "AUTH_PORT=${{ secrets.AUTH_PORT }}" >> .env
             echo "BUDGET_PORT=${{ secrets.BUDGET_PORT }}" >> .env
             echo "TRANSACTION_PORT=${{ secrets.TRANSACTION_PORT }}" >> .env
@@ -114,10 +122,12 @@ jobs:
             echo "GOAL_PORT=${{ secrets.GOAL_PORT }}" >> .env
             echo "DASHBOARD_PORT=${{ secrets.DASHBOARD_PORT }}" >> .env
             
-            echo "BUDGET_SERVICE_URL=http://budget-service:${{ secrets.BUDGET_PORT }}/api/v1" >> .env
-            echo "TRANSACTION_SERVICE_URL=http://transaction-service:${{ secrets.TRANSACTION_PORT }}/api/v1" >> .env
-            echo "GOAL_SERVICE_URL=http://goal-service:${{ secrets.GOAL_PORT }}/api/v1" >> .env
-            echo "BANK_SERVICE_URL=http://bank-service:${{ secrets.BANK_PORT }}/api/v1" >> .env
+            echo "AUTH_SERVICE_URL=http://auth-service:${{ secrets.AUTH_PORT }}" >> .env
+            echo "BUDGET_SERVICE_URL=http://budget-service:${{ secrets.BUDGET_PORT }}" >> .env
+            echo "TRANSACTION_SERVICE_URL=http://transaction-service:${{ secrets.TRANSACTION_PORT }}" >> .env
+            echo "GOAL_SERVICE_URL=http://goal-service:${{ secrets.GOAL_PORT }}" >> .env
+            echo "BANK_SERVICE_URL=http://bank-service:${{ secrets.BANK_PORT }}" >> .env
+            echo "DASHBOARD_SERVICE_URL=http://dashboard-service:${{ secrets.DASHBOARD_PORT }}" >> .env
             
             echo "S3_URL=${{ secrets.S3_URL }}" >> .env
             echo "S3_ACCESS_KEY=${{ secrets.S3_ACCESS_KEY }}" >> .env
