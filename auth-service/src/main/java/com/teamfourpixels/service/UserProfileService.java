@@ -3,7 +3,6 @@ package com.teamfourpixels.service;
 import com.teamfourpixels.dto.*;
 import com.teamfourpixels.entity.*;
 import com.teamfourpixels.repository.*;
-import io.minio.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -11,13 +10,14 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.*;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.InputStream;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -29,7 +29,7 @@ public class UserProfileService {
     private final UserRepository userRepository;
     private final PasswordResetTokenRepository tokenRepository;
     private final PasswordEncoder passwordEncoder;
-    private final MinioClient minioClient;
+    private final S3Client s3Client;
 
     @Value("${s3.bucket}")
     private String bucketName;
@@ -114,13 +114,15 @@ public class UserProfileService {
         if (currentAvatarUrl != null && currentAvatarUrl.contains(bucketName)) {
             try {
                 String oldFileName = currentAvatarUrl.substring(currentAvatarUrl.lastIndexOf("/") + 1);
-                minioClient.removeObject(RemoveObjectArgs.builder()
+
+                s3Client.deleteObject(DeleteObjectRequest.builder()
                         .bucket(bucketName)
-                        .object(oldFileName)
+                        .key(oldFileName)
                         .build());
+
                 log.info("Удален старый файл аватара из S3: {}", oldFileName);
-            } catch (Exception e) {
-                log.error("Ошибка при удалении старого аватара из S3: {}", e.getMessage());
+            } catch (S3Exception e) {
+                log.error("Ошибка при удалении старого аватара из S3: {}", e.awsErrorDetails().errorMessage());
             }
         }
     }
@@ -136,18 +138,18 @@ public class UserProfileService {
 
             ByteArrayOutputStream os = new ByteArrayOutputStream();
             ImageIO.write(resizedImage, "jpg", os);
-            InputStream is = new ByteArrayInputStream(os.toByteArray());
+            byte[] imageBytes = os.toByteArray();
 
             String fileName = UUID.randomUUID() + ".jpg";
 
             ensureBucketExistsAndIsPublic();
 
-            minioClient.putObject(PutObjectArgs.builder()
-                    .bucket(bucketName)
-                    .object(fileName)
-                    .stream(is, os.size(), -1)
-                    .contentType("image/jpeg")
-                    .build());
+            s3Client.putObject(PutObjectRequest.builder()
+                            .bucket(bucketName)
+                            .key(fileName)
+                            .contentType("image/jpeg")
+                            .build(),
+                    RequestBody.fromBytes(imageBytes));
 
             return fileName;
 
@@ -157,10 +159,23 @@ public class UserProfileService {
         }
     }
 
-    private void ensureBucketExistsAndIsPublic() throws Exception {
-        boolean found = minioClient.bucketExists(BucketExistsArgs.builder().bucket(bucketName).build());
-        if (!found) {
-            minioClient.makeBucket(MakeBucketArgs.builder().bucket(bucketName).build());
+    private void ensureBucketExistsAndIsPublic() {
+        boolean bucketExists = false;
+        try {
+            s3Client.headBucket(HeadBucketRequest.builder().bucket(bucketName).build());
+            bucketExists = true;
+        } catch (NoSuchBucketException e) {
+            bucketExists = false;
+        } catch (S3Exception e) {
+            if (e.statusCode() == 404) {
+                bucketExists = false;
+            } else {
+                throw e;
+            }
+        }
+
+        if (!bucketExists) {
+            s3Client.createBucket(CreateBucketRequest.builder().bucket(bucketName).build());
 
             String policy = """
                 {
@@ -175,7 +190,13 @@ public class UserProfileService {
                   "Version": "2012-10-17"
                 }
                 """.formatted(bucketName);
-            minioClient.setBucketPolicy(SetBucketPolicyArgs.builder().bucket(bucketName).config(policy).build());
+
+            s3Client.putBucketPolicy(PutBucketPolicyRequest.builder()
+                    .bucket(bucketName)
+                    .policy(policy)
+                    .build());
+
+            log.info("Создан бакет {} и установлена публичная политика чтения", bucketName);
         }
     }
 

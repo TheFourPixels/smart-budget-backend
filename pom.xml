@@ -16,6 +16,7 @@
         <module>goal-service</module>
         <module>dashboard-service</module>
         <module>auth-service</module>
+        <module>gateway-service</module>
     </modules>
 
     <properties>
