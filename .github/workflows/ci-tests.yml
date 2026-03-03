@@ -29,6 +29,7 @@ jobs:
 
       - name: Create .env file for Docker
         run: |
+      
           echo "GATEWAY_PORT=8080" >> .env
           echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
           echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
@@ -44,6 +45,7 @@ jobs:
           echo "GOAL_PORT=${{ secrets.GOAL_PORT }}" >> .env
           echo "DASHBOARD_PORT=${{ secrets.DASHBOARD_PORT }}" >> .env
           
+      
           echo "AUTH_SERVICE_URL=http://auth-service:${{ secrets.AUTH_PORT }}" >> .env
           echo "BUDGET_SERVICE_URL=http://budget-service:${{ secrets.BUDGET_PORT }}" >> .env
           echo "TRANSACTION_SERVICE_URL=http://transaction-service:${{ secrets.TRANSACTION_PORT }}" >> .env
@@ -68,8 +70,14 @@ jobs:
       - name: Run Newman Tests
         run: |
           npm install -g newman
+          
           newman run postman/API-SmartBudget.json \
-            --env-var "authBaseUrl=http://localhost:8080/api/v1/auth" \
+            --env-var "authBaseUrl=http://localhost:8080/api/v1" \
+            --env-var "budgetBaseUrl=http://localhost:8080/api/v1/budgets" \
+            --env-var "categoryBaseUrl=http://localhost:8080/api/v1/categories" \
+            --env-var "transactionBaseUrl=http://localhost:8080/api/v1/transactions" \
+            --env-var "goalBaseUrl=http://localhost:8080/api/v1/goals" \
+            --env-var "dashboardBaseUrl=http://localhost:8080/api/v1/dashboard" \
             --reporters cli
 
       - name: Dump Logs on Failure
