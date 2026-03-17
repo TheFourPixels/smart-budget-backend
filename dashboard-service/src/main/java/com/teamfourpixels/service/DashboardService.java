@@ -37,7 +37,7 @@ public class DashboardService {
         String authHeader = "Bearer " + jwt;
 
         BudgetDto budget = budgetClient.get()
-                .uri("/budgets/{year}/{month}", year, month)
+                .uri("/api/v1/budgets/{year}/{month}", year, month)
                 .header(USER_ID_HEADER, USER_ID.toString())
                 .header(HttpHeaders.AUTHORIZATION, authHeader)
                 .retrieve()
@@ -50,7 +50,7 @@ public class DashboardService {
                 .orElse(new BudgetDto());
 
         List<TransactionDto> transactions = transactionClient.get()
-                .uri(uri -> uri.path("/transactions")
+                .uri(uri -> uri.path("/api/v1/transactions")
                         .queryParam("page", 0)
                         .queryParam("size", 1000)
                         .queryParam("startDateMillis", start.toEpochMilli())
@@ -65,7 +65,7 @@ public class DashboardService {
 
         List<GoalDto> goals = goalClient.get()
                 .uri(uriBuilder -> uriBuilder
-                        .path("/goals/active")
+                        .path("/api/v1/goals/active")
                         .queryParam("year", year)
                         .queryParam("month", month)
                         .build())

@@ -30,7 +30,7 @@ public class CategoryServiceClient implements CategoryQueryService {
 
         try {
             return budgetWebClient.get()
-                    .uri("/categories/{id}", categoryId)
+                    .uri("/api/v1/categories", categoryId)
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwt) // <---
                     .retrieve()
                     .onStatus(status -> status == HttpStatus.NOT_FOUND, response -> {
