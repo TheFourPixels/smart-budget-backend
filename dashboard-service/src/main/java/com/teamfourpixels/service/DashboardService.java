@@ -24,7 +24,6 @@ public class DashboardService {
     private final WebClient transactionClient;
     private final WebClient goalClient;
 
-    private static final Long USER_ID = 1L;
     private static final int RECENT_TX_COUNT = 5;
     private static final String USER_ID_HEADER = "X-User-Id";
 
@@ -38,7 +37,7 @@ public class DashboardService {
 
         BudgetDto budget = budgetClient.get()
                 .uri("/api/v1/budgets/{year}/{month}", year, month)
-                .header(USER_ID_HEADER, USER_ID.toString())
+                .header(USER_ID_HEADER, String.valueOf(userid))
                 .header(HttpHeaders.AUTHORIZATION, authHeader)
                 .retrieve()
                 .onStatus(org.springframework.http.HttpStatusCode::is4xxClientError,
@@ -56,7 +55,8 @@ public class DashboardService {
                         .queryParam("startDateMillis", start.toEpochMilli())
                         .queryParam("endDateMillis", end.toEpochMilli())
                         .build())
-                .header(USER_ID_HEADER, USER_ID.toString())
+
+                .header(USER_ID_HEADER, String.valueOf(userid))
                 .header(HttpHeaders.AUTHORIZATION, authHeader)
                 .retrieve()
                 .bodyToFlux(TransactionDto.class)
@@ -69,7 +69,8 @@ public class DashboardService {
                         .queryParam("year", year)
                         .queryParam("month", month)
                         .build())
-                .header(USER_ID_HEADER, USER_ID.toString())
+
+                .header(USER_ID_HEADER, String.valueOf(userid))
                 .header(HttpHeaders.AUTHORIZATION, authHeader)
                 .retrieve()
                 .bodyToFlux(GoalDto.class)
