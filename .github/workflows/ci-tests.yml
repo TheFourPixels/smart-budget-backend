@@ -73,11 +73,11 @@ jobs:
           
           newman run postman/API-SmartBudget.json \
             --env-var "authBaseUrl=http://localhost:8080/api/v1" \
-            --env-var "budgetBaseUrl=http://localhost:8080/api/v1/budgets" \
-            --env-var "categoryBaseUrl=http://localhost:8080/api/v1/categories" \
-            --env-var "transactionBaseUrl=http://localhost:8080/api/v1/transactions" \
-            --env-var "goalBaseUrl=http://localhost:8080/api/v1/goals" \
-            --env-var "dashboardBaseUrl=http://localhost:8080/api/v1/dashboard" \
+            --env-var "budgetBaseUrl=http://localhost:8080/api/v1" \
+            --env-var "categoryBaseUrl=http://localhost:8080/api/v1" \
+            --env-var "transactionBaseUrl=http://localhost:8080/api/v1" \
+            --env-var "goalBaseUrl=http://localhost:8080/api/v1" \
+            --env-var "dashboardBaseUrl=http://localhost:8080/api/v1" \
             --reporters cli
 
       - name: Dump Logs on Failure
