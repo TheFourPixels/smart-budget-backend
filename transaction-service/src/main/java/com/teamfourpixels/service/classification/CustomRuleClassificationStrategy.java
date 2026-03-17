@@ -4,14 +4,12 @@ import com.teamfourpixels.entity.CategorizationRule;
 import com.teamfourpixels.entity.Transaction;
 import com.teamfourpixels.repository.CategorizationRuleRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Optional;
 
 @Component
-@Order(1)
 @RequiredArgsConstructor
 public class CustomRuleClassificationStrategy implements ClassificationStrategy {
 
@@ -20,8 +18,9 @@ public class CustomRuleClassificationStrategy implements ClassificationStrategy 
     @Override
     public Optional<Long> classify(Transaction transaction) {
         List<CategorizationRule> rules = repository.findByUserId(transaction.getUserId());
-
-        String searchText = (transaction.getMerchant() + " " + transaction.getDescription()).toLowerCase();
+        String merchant = transaction.getMerchant() == null ? "" : transaction.getMerchant();
+        String description = transaction.getDescription() == null ? "" : transaction.getDescription();
+        String searchText = (merchant + " " + description).toLowerCase();
 
         for (CategorizationRule rule : rules) {
             if (searchText.contains(rule.getKeyword().toLowerCase())) {
@@ -29,5 +28,10 @@ public class CustomRuleClassificationStrategy implements ClassificationStrategy 
             }
         }
         return Optional.empty();
+    }
+
+    @Override
+    public int getPriority() {
+        return 1;
     }
 }

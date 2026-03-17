@@ -1,14 +1,14 @@
 services:
   db:
     image: postgres:14-alpine
-    container_name: smartbudget_db
+    container_name: smartbudget-db
     restart: always
     environment:
       POSTGRES_DB: ${DB_NAME}
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
-      - "${DB_PORT}:5432"
+      - "${DB_PORT}:${DB_PORT}"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -18,11 +18,31 @@ services:
       retries: 10
       start_period: 10s
 
+  gateway-service:
+    image: ${DOCKER_USERNAME}/smart-budget-gateway:latest
+    container_name: gateway-service
+    restart: always
+    ports:
+      - "${GATEWAY_PORT}:${GATEWAY_PORT}"
+    environment:
+      GATEWAY_PORT: ${GATEWAY_PORT}
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL}
+      BUDGET_SERVICE_URL: ${BUDGET_SERVICE_URL}
+      TRANSACTION_SERVICE_URL: ${TRANSACTION_SERVICE_URL}
+      GOAL_SERVICE_URL: ${GOAL_SERVICE_URL}
+      BANK_SERVICE_URL: ${BANK_SERVICE_URL}
+      DASHBOARD_SERVICE_URL: ${DASHBOARD_SERVICE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      budget-service:
+        condition: service_healthy
+
   budget-service:
     image: ${DOCKER_USERNAME}/smart-budget-budget:latest
-    container_name: budget_service
-    ports:
-      - "${BUDGET_PORT}:${BUDGET_PORT}"
+    container_name: budget-service
+    restart: always
     environment:
       SERVER_PORT: ${BUDGET_PORT}
       SPRING_DATASOURCE_URL: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
@@ -34,13 +54,16 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${BUDGET_PORT}/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   transaction-service:
     image: ${DOCKER_USERNAME}/smart-budget-transaction:latest
-    container_name: transaction_service
-    ports:
-      - "${TRANSACTION_PORT}:${TRANSACTION_PORT}"
+    container_name: transaction-service
+    restart: always
     environment:
       SERVER_PORT: ${TRANSACTION_PORT}
       SPRING_DATASOURCE_URL: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
@@ -54,13 +77,16 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${TRANSACTION_PORT}/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   bank-service:
     image: ${DOCKER_USERNAME}/smart-budget-bank:latest
-    container_name: bank_service
-    ports:
-      - "${BANK_PORT}:${BANK_PORT}"
+    container_name: bank-service
+    restart: always
     environment:
       SERVER_PORT: ${BANK_PORT}
       SPRING_DATASOURCE_URL: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
@@ -68,13 +94,16 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
       SPRING_PROFILES_ACTIVE: docker
       JWT_SECRET: ${JWT_SECRET}
-    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${BANK_PORT}/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   goal-service:
     image: ${DOCKER_USERNAME}/smart-budget-goal:latest
-    container_name: goal_service
-    ports:
-      - "${GOAL_PORT}:${GOAL_PORT}"
+    container_name: goal-service
+    restart: always
     environment:
       SERVER_PORT: ${GOAL_PORT}
       SPRING_DATASOURCE_URL: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
@@ -87,13 +116,16 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${GOAL_PORT}/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   dashboard-service:
     image: ${DOCKER_USERNAME}/smart-budget-dashboard:latest
-    container_name: dashboard_service
-    ports:
-      - "${DASHBOARD_PORT}:${DASHBOARD_PORT}"
+    container_name: dashboard-service
+    restart: always
     environment:
       SERVER_PORT: ${DASHBOARD_PORT}
       BUDGET_SERVICE_URL: ${BUDGET_SERVICE_URL}
@@ -101,13 +133,16 @@ services:
       GOAL_SERVICE_URL: ${GOAL_SERVICE_URL}
       JWT_SECRET: ${JWT_SECRET}
       SPRING_PROFILES_ACTIVE: docker
-    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${DASHBOARD_PORT}/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   auth-service:
     image: ${DOCKER_USERNAME}/smart-budget-auth:latest
-    container_name: auth_service
-    ports:
-      - "${AUTH_PORT}:${AUTH_PORT}"
+    container_name: auth-service
+    restart: always
     environment:
       SERVER_PORT: ${AUTH_PORT}
       SPRING_DATASOURCE_URL: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
@@ -116,10 +151,19 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRATION: ${JWT_EXPIRATION}
       SPRING_PROFILES_ACTIVE: docker
+      S3_URL: ${S3_URL}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
+      S3_BUCKET: ${S3_BUCKET}
+      S3_PUBLIC_URL_PREFIX: ${S3_PUBLIC_URL_PREFIX}
     depends_on:
       db:
         condition: service_healthy
-    restart: always
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${AUTH_PORT}/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres_data:

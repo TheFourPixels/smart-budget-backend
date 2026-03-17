@@ -1,14 +1,14 @@
 services:
   db:
     image: postgres:14-alpine
-    container_name: smartbudget_db
+    container_name: smartbudget-db
     restart: always
     environment:
       POSTGRES_DB: ${DB_NAME}
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
-      - "${DB_PORT}:5432"
+      - "${DB_PORT}:${DB_PORT}"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -18,11 +18,45 @@ services:
       retries: 10
       start_period: 10s
 
+  gateway-service:
+    build: ./gateway-service
+    container_name: gateway-service
+    ports:
+      - "${GATEWAY_PORT}:${GATEWAY_PORT}"
+    environment:
+      GATEWAY_PORT: ${GATEWAY_PORT}
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL}
+      BUDGET_SERVICE_URL: ${BUDGET_SERVICE_URL}
+      TRANSACTION_SERVICE_URL: ${TRANSACTION_SERVICE_URL}
+      GOAL_SERVICE_URL: ${GOAL_SERVICE_URL}
+      BANK_SERVICE_URL: ${BANK_SERVICE_URL}
+      DASHBOARD_SERVICE_URL: ${DASHBOARD_SERVICE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      budget-service:
+        condition: service_healthy
+      transaction-service:
+        condition: service_healthy
+
+  minio:
+    image: minio/minio
+    container_name: smartbudget-minio
+    ports:
+      - "${MINIO_PORT}:${MINIO_PORT}"
+      - "${MINIO_CONSOLE_PORT}:${MINIO_CONSOLE_PORT}"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY}
+    command: server /data --console-address ":${MINIO_CONSOLE_PORT}"
+    volumes:
+      - minio_data:/data
+    restart: always
+
   auth-service:
     build: ./auth-service
-    container_name: auth_service
-    ports:
-      - "${AUTH_PORT}:${AUTH_PORT}"
+    container_name: auth-service
     environment:
       SERVER_PORT: ${AUTH_PORT}
       DB_HOST: db
@@ -30,16 +64,20 @@ services:
       DB_NAME: ${DB_NAME}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
-      BUDGET_SERVICE_URL: ${BUDGET_SERVICE_URL}
-      TRANSACTION_SERVICE_URL: ${TRANSACTION_SERVICE_URL}
-      GOAL_SERVICE_URL: ${GOAL_SERVICE_URL}
       JWT_SECRET: ${JWT_SECRET}
       SPRING_PROFILES_ACTIVE: docker
+      S3_URL: ${S3_URL}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
+      S3_BUCKET: ${S3_BUCKET}
+      S3_PUBLIC_URL_PREFIX: ${S3_PUBLIC_URL_PREFIX}
     depends_on:
       db:
         condition: service_healthy
+      minio:
+        condition: service_started
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8089/actuator/health" ]
+      test: [ "CMD", "curl", "-f", "http://localhost:${AUTH_PORT}/actuator/health" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -48,9 +86,7 @@ services:
 
   goal-service:
     build: ./goal-service
-    container_name: goal_service
-    ports:
-      - "${GOAL_PORT}:${GOAL_PORT}"
+    container_name: goal-service
     environment:
       SERVER_PORT: ${GOAL_PORT}
       DB_HOST: db
@@ -67,7 +103,7 @@ services:
       auth-service:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8087/actuator/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:${GOAL_PORT}/actuator/health"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -76,9 +112,7 @@ services:
 
   budget-service:
     build: ./budget-service
-    container_name: budget_service
-    ports:
-      - "${BUDGET_PORT}:${BUDGET_PORT}"
+    container_name: budget-service
     environment:
       SERVER_PORT: ${BUDGET_PORT}
       DB_HOST: db
@@ -95,7 +129,7 @@ services:
       goal-service:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:${BUDGET_PORT}/actuator/health"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -104,9 +138,7 @@ services:
 
   transaction-service:
     build: ./transaction-service
-    container_name: transaction_service
-    ports:
-      - "${TRANSACTION_PORT}:${TRANSACTION_PORT}"
+    container_name: transaction-service
     environment:
       SERVER_PORT: ${TRANSACTION_PORT}
       DB_HOST: db
@@ -125,7 +157,7 @@ services:
       budget-service:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8083/actuator/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:${TRANSACTION_PORT}/actuator/health"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -134,9 +166,7 @@ services:
 
   bank-service:
     build: ./bank-service
-    container_name: bank_service
-    ports:
-      - "${BANK_PORT}:${BANK_PORT}"
+    container_name: bank-service
     environment:
       SERVER_PORT: ${BANK_PORT}
       DB_HOST: db
@@ -152,7 +182,7 @@ services:
       transaction-service:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8085/actuator/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:${BANK_PORT}/actuator/health"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -161,9 +191,7 @@ services:
 
   dashboard-service:
     build: ./dashboard-service
-    container_name: dashboard_service
-    ports:
-      - "${DASHBOARD_PORT}:${DASHBOARD_PORT}"
+    container_name: dashboard-service
     environment:
       SERVER_PORT: ${DASHBOARD_PORT}
       DB_HOST: db
@@ -193,6 +221,7 @@ services:
 
 volumes:
   postgres_data:
+  minio_data:
 
 networks:
   default:

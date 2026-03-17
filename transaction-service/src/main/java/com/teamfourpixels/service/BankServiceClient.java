@@ -15,7 +15,7 @@ public class BankServiceClient {
     public List<TransactionDto> fetchTransactions(int year, int month) {
         return bankWebClient.get()
                 .uri(uriBuilder -> uriBuilder
-                        .path("/bank/transactions")
+                        .path("/api/v1/bank/transactions")
                         .queryParam("year", year)
                         .queryParam("month", month)
                         .build())

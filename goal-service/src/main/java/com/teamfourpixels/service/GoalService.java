@@ -32,7 +32,6 @@ public class GoalService {
     private final WebClient budgetClient;
 
     private static final String USER_ID_HEADER = "X-User-Id";
-    private static final Long DUMMY_USER_ID = 1L;
 
     private Integer calculateProgress(Goal g) {
         if (g.getTargetAmount().compareTo(BigDecimal.ZERO) == 0) return 0;
@@ -63,12 +62,11 @@ public class GoalService {
     }
 
     private void checkBudgetExists(Long userId, int year, int month) {
-        // Получаем токен из текущего контекста
         String jwt = (String) SecurityContextHolder.getContext().getAuthentication().getCredentials();
 
         try {
             budgetClient.get()
-                    .uri("/budgets/{year}/{month}", year, month)
+                    .uri("/api/v1/budgets/{year}/{month}", year, month)
                     .header(USER_ID_HEADER, userId.toString())
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwt) // <--- Добавляем заголовок
                     .retrieve()

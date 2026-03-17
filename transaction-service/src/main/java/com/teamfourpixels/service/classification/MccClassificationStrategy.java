@@ -24,4 +24,9 @@ public class MccClassificationStrategy implements ClassificationStrategy {
         return Optional.ofNullable(transaction.getMcc())
                 .map(MCC_TO_CATEGORY::get);
     }
+
+    @Override
+    public int getPriority() {
+        return 3;
+    }
 }

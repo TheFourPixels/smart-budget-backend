@@ -2,11 +2,14 @@ package com.teamfourpixels.service;
 
 import com.teamfourpixels.dto.CategoryTotalSpentDto;
 import com.teamfourpixels.dto.CreateTransactionRequest;
+import com.teamfourpixels.dto.SplitTransactionRequest;
 import com.teamfourpixels.dto.TransactionDto;
 import com.teamfourpixels.entity.Transaction;
+import com.teamfourpixels.entity.TransactionSplit;
 import com.teamfourpixels.enums.OperationType;
 import com.teamfourpixels.mapper.TransactionMapper;
 import com.teamfourpixels.repository.TransactionRepository;
+import com.teamfourpixels.repository.TransactionSplitRepository;
 import com.teamfourpixels.service.classification.ClassificationStrategy;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -15,9 +18,11 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -26,12 +31,14 @@ import java.util.concurrent.CompletableFuture;
 @RequiredArgsConstructor
 public class TransactionService {
     private final TransactionRepository repository;
+    private final TransactionSplitRepository splitRepository;
     private final TransactionMapper mapper;
     private final BankServiceClient bankServiceClient;
     private final CategoryQueryService categoryQueryService;
     private final List<ClassificationStrategy> classificationStrategies;
 
     private static final Long UNCATEGORIZED_ID = 999L;
+    private static final Long SPLIT_CATEGORY_ID = -1L;
 
     @Transactional(readOnly = true)
     public Page<TransactionDto> getTransactionsPage(Long userId, int page, int size,
@@ -41,8 +48,7 @@ public class TransactionService {
                 userId, categoryId, query, start, end);
 
         Pageable pageable = PageRequest.of(page, size, Sort.by("transactionTime").descending());
-        Page<Transaction> pageResult = repository.findAll(spec, pageable);
-        return pageResult.map(mapper::toDto);
+        return repository.findAll(spec, pageable).map(mapper::toDto);
     }
 
     @Transactional(readOnly = true)
@@ -56,19 +62,55 @@ public class TransactionService {
         List<TransactionDto> bankTransactions = bankServiceClient.fetchTransactions(year, month);
         int newCount = 0;
 
+        List<ClassificationStrategy> sortedStrategies = classificationStrategies.stream()
+                .sorted(Comparator.comparingInt(ClassificationStrategy::getPriority))
+                .toList();
+
         for (TransactionDto bankDto : bankTransactions) {
             if (repository.findByUserIdAndBankTransactionRefId(userId, bankDto.getExternalId()).isPresent()) {
                 continue;
             }
             Transaction transaction = convertBankDtoToTransaction(userId, bankDto);
 
-            Long categoryId = autoClassify(transaction);
+            Long categoryId = autoClassify(transaction, sortedStrategies);
             transaction.setCategoryId(categoryId);
             repository.save(transaction);
             newCount++;
         }
 
         return CompletableFuture.completedFuture(newCount);
+    }
+
+    @Transactional
+    public TransactionDto splitTransaction(Long userId, Long transactionId, SplitTransactionRequest request) {
+        Transaction transaction = getByIdAndUser(transactionId, userId);
+
+        BigDecimal totalSplitAmount = request.getSplits().stream()
+                .map(SplitTransactionRequest.SplitPartRequest::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        if (totalSplitAmount.compareTo(transaction.getAmount().abs()) != 0) {
+            throw new IllegalArgumentException("Сумма частей не совпадает с суммой транзакции: "
+                    + totalSplitAmount + " != " + transaction.getAmount());
+        }
+
+        List<TransactionSplit> existingSplits = splitRepository.findByTransactionId(transactionId);
+        splitRepository.deleteAll(existingSplits);
+
+        List<TransactionSplit> newSplits = request.getSplits().stream()
+                .map(req -> TransactionSplit.builder()
+                        .transaction(transaction)
+                        .categoryId(req.getCategoryId())
+                        .amount(req.getAmount())
+                        .description(req.getDescription())
+                        .build())
+                .toList();
+        splitRepository.saveAll(newSplits);
+
+        transaction.setCategoryId(SPLIT_CATEGORY_ID);
+        repository.save(transaction);
+
+        return mapper.toDto(transaction);
     }
 
     private Transaction convertBankDtoToTransaction(Long userId, TransactionDto bankDto) {
@@ -86,8 +128,8 @@ public class TransactionService {
                 .build();
     }
 
-    private Long autoClassify(Transaction t) {
-        for (ClassificationStrategy strategy : classificationStrategies) {
+    private Long autoClassify(Transaction t, List<ClassificationStrategy> strategies) {
+        for (ClassificationStrategy strategy : strategies) {
             Optional<Long> categoryId = strategy.classify(t);
             if (categoryId.isPresent()) {
                 return categoryId.get();
@@ -99,6 +141,11 @@ public class TransactionService {
     @Transactional
     public TransactionDto updateTransactionCategory(Long userId, Long id, Long categoryId) {
         Transaction t = getByIdAndUser(id, userId);
+
+        if (t.getCategoryId().equals(SPLIT_CATEGORY_ID)) {
+            List<TransactionSplit> existingSplits = splitRepository.findByTransactionId(id);
+            splitRepository.deleteAll(existingSplits);
+        }
 
         try {
             categoryQueryService.getCategoryById(categoryId);
@@ -124,27 +171,9 @@ public class TransactionService {
         return mapper.toDto(repository.save(t));
     }
 
-    @Transactional
-    public TransactionDto updateTransaction(Long userId, Long id, CreateTransactionRequest request) {
-        Transaction t = getByIdAndUser(id, userId);
-        mapper.updateEntity(request, t);
-        return mapper.toDto(repository.save(t));
-    }
-
     @Transactional(readOnly = true)
     public CategoryTotalSpentDto getTotalSpentByCategory(Long userId, Long categoryId) {
-        try {
-            categoryQueryService.getCategoryById(categoryId);
-        } catch (EntityNotFoundException e) {
-            throw new IllegalArgumentException("Категория с ID " + categoryId + " не найдена.");
-        }
-
         BigDecimal total = repository.getTotalSpentByCategory(userId, categoryId, OperationType.EXPENSE);
-
-        if (total == null) {
-            total = BigDecimal.ZERO;
-        }
-
-        return new CategoryTotalSpentDto(categoryId, total);
+        return new CategoryTotalSpentDto(categoryId, total == null ? BigDecimal.ZERO : total);
     }
 }

@@ -71,56 +71,72 @@ jobs:
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/smart-budget-dashboard:latest
 
-  deploy-to-yandex:
-    needs: build-and-push
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Copy docker-compose via SCP
-        uses: appleboy/scp-action@master
+      - name: Build & Push Gateway Service
+        uses: docker/build-push-action@v5
         with:
-          host: ${{ secrets.YC_HOST }}
-          username: ${{ secrets.YC_USERNAME }}
-          key: ${{ secrets.YC_SSH_PRIVATE_KEY }}
-          source: "docker-compose.prod.yml"
-          target: "/home/${{ secrets.YC_USERNAME }}/app/"
-          strip_components: 0
+          context: ./gateway-service
+          push: true
+          tags: ${{ secrets.DOCKER_USERNAME }}/smart-budget-gateway:latest
 
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.YC_HOST }}
-          username: ${{ secrets.YC_USERNAME }}
-          key: ${{ secrets.YC_SSH_PRIVATE_KEY }}
-          script: |
-            cd /home/${{ secrets.YC_USERNAME }}/app/
-            
-            echo "DB_HOST=db" > .env
-            echo "DB_USER=${{ secrets.DB_USER }}" >> .env
-            echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
-            echo "DB_NAME=${{ secrets.DB_NAME }}" >> .env
-            echo "DB_PORT=${{ secrets.DB_PORT }}" >> .env
-            
-            echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
-            echo "JWT_EXPIRATION=${{ secrets.JWT_EXPIRATION }}" >> .env
-            echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}" >> .env
-            
-            echo "AUTH_PORT=${{ secrets.AUTH_PORT }}" >> .env
-            echo "BUDGET_PORT=${{ secrets.BUDGET_PORT }}" >> .env
-            echo "TRANSACTION_PORT=${{ secrets.TRANSACTION_PORT }}" >> .env
-            echo "BANK_PORT=${{ secrets.BANK_PORT }}" >> .env
-            echo "GOAL_PORT=${{ secrets.GOAL_PORT }}" >> .env
-            echo "DASHBOARD_PORT=${{ secrets.DASHBOARD_PORT }}" >> .env
-            
-            echo "BUDGET_SERVICE_URL=http://budget-service:${{ secrets.BUDGET_PORT }}/api/v1" >> .env
-            echo "TRANSACTION_SERVICE_URL=http://transaction-service:${{ secrets.TRANSACTION_PORT }}/api/v1" >> .env
-            echo "GOAL_SERVICE_URL=http://goal-service:${{ secrets.GOAL_PORT }}/api/v1" >> .env
-            echo "BANK_SERVICE_URL=http://bank-service:${{ secrets.BANK_PORT }}/api/v1" >> .env
-            
-            docker compose -f docker-compose.prod.yml pull
-            docker compose -f docker-compose.prod.yml down
-            docker compose -f docker-compose.prod.yml up -d --remove-orphans
-            
-            docker image prune -f
+#  deploy-to-yandex:
+#    needs: build-and-push
+#    runs-on: ubuntu-latest
+#    steps:
+#      - name: Checkout code
+#        uses: actions/checkout@v4
+#
+#      - name: Copy docker-compose via SCP
+#        uses: appleboy/scp-action@master
+#        with:
+#          host: ${{ secrets.YC_HOST }}
+#          username: ${{ secrets.YC_USERNAME }}
+#          key: ${{ secrets.YC_SSH_PRIVATE_KEY }}
+#          source: "docker-compose.prod.yml"
+#          target: "/home/${{ secrets.YC_USERNAME }}/app/"
+#          strip_components: 0
+#
+#      - name: Deploy via SSH
+#        uses: appleboy/ssh-action@master
+#        with:
+#          host: ${{ secrets.YC_HOST }}
+#          username: ${{ secrets.YC_USERNAME }}
+#          key: ${{ secrets.YC_SSH_PRIVATE_KEY }}
+#          script: |
+#            cd /home/${{ secrets.YC_USERNAME }}/app/
+#
+#            echo "DB_HOST=db" > .env
+#            echo "DB_USER=${{ secrets.DB_USER }}" >> .env
+#            echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
+#            echo "DB_NAME=${{ secrets.DB_NAME }}" >> .env
+#            echo "DB_PORT=${{ secrets.DB_PORT }}" >> .env
+#
+#            echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
+#            echo "JWT_EXPIRATION=${{ secrets.JWT_EXPIRATION }}" >> .env
+#            echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}" >> .env
+#
+#            echo "GATEWAY_PORT=8080" >> .env
+#            echo "AUTH_PORT=${{ secrets.AUTH_PORT }}" >> .env
+#            echo "BUDGET_PORT=${{ secrets.BUDGET_PORT }}" >> .env
+#            echo "TRANSACTION_PORT=${{ secrets.TRANSACTION_PORT }}" >> .env
+#            echo "BANK_PORT=${{ secrets.BANK_PORT }}" >> .env
+#            echo "GOAL_PORT=${{ secrets.GOAL_PORT }}" >> .env
+#            echo "DASHBOARD_PORT=${{ secrets.DASHBOARD_PORT }}" >> .env
+#
+#            echo "AUTH_SERVICE_URL=http://auth-service:${{ secrets.AUTH_PORT }}" >> .env
+#            echo "BUDGET_SERVICE_URL=http://budget-service:${{ secrets.BUDGET_PORT }}" >> .env
+#            echo "TRANSACTION_SERVICE_URL=http://transaction-service:${{ secrets.TRANSACTION_PORT }}" >> .env
+#            echo "GOAL_SERVICE_URL=http://goal-service:${{ secrets.GOAL_PORT }}" >> .env
+#            echo "BANK_SERVICE_URL=http://bank-service:${{ secrets.BANK_PORT }}" >> .env
+#            echo "DASHBOARD_SERVICE_URL=http://dashboard-service:${{ secrets.DASHBOARD_PORT }}" >> .env
+#
+#            echo "S3_URL=${{ secrets.S3_URL }}" >> .env
+#            echo "S3_ACCESS_KEY=${{ secrets.S3_ACCESS_KEY }}" >> .env
+#            echo "S3_SECRET_KEY=${{ secrets.S3_SECRET_KEY }}" >> .env
+#            echo "S3_BUCKET=${{ secrets.S3_BUCKET }}" >> .env
+#            echo "S3_PUBLIC_URL_PREFIX=${{ secrets.S3_PUBLIC_URL_PREFIX }}" >> .env
+#
+#            docker compose -f docker-compose.prod.yml pull
+#            docker compose -f docker-compose.prod.yml down
+#            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+#
+#            docker image prune -f

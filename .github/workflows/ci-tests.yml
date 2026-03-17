@@ -7,6 +7,7 @@ on:
   pull_request:
     branches:
       - develop
+      - main
 
 jobs:
   api_tests:
@@ -22,60 +23,68 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
           cache: maven
-          cache-dependency-path: pom.xml
 
-      - name: Build Project (Quiet Mode)
+      - name: Build Project
         run: mvn -B package -DskipTests -q
 
       - name: Create .env file for Docker
         run: |
+      
+          echo "GATEWAY_PORT=8080" >> .env
           echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
           echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
           echo "DB_USER=${{ secrets.DB_USER }}" >> .env
-
-          echo "DB_HOST=${{ secrets.DB_HOST }}" >> .env
+          echo "DB_HOST=db" >> .env
           echo "DB_NAME=${{ secrets.DB_NAME }}" >> .env
           echo "DB_PORT=${{ secrets.DB_PORT }}" >> .env
           echo "JWT_EXPIRATION=${{ secrets.JWT_EXPIRATION }}" >> .env
-
+          echo "AUTH_PORT=${{ secrets.AUTH_PORT }}" >> .env
           echo "BUDGET_PORT=${{ secrets.BUDGET_PORT }}" >> .env
           echo "TRANSACTION_PORT=${{ secrets.TRANSACTION_PORT }}" >> .env
           echo "BANK_PORT=${{ secrets.BANK_PORT }}" >> .env
           echo "GOAL_PORT=${{ secrets.GOAL_PORT }}" >> .env
           echo "DASHBOARD_PORT=${{ secrets.DASHBOARD_PORT }}" >> .env
-          echo "AUTH_PORT=${{ secrets.AUTH_PORT }}" >> .env
+          
+      
+          echo "AUTH_SERVICE_URL=http://auth-service:${{ secrets.AUTH_PORT }}" >> .env
+          echo "BUDGET_SERVICE_URL=http://budget-service:${{ secrets.BUDGET_PORT }}" >> .env
+          echo "TRANSACTION_SERVICE_URL=http://transaction-service:${{ secrets.TRANSACTION_PORT }}" >> .env
+          echo "BANK_SERVICE_URL=http://bank-service:${{ secrets.BANK_PORT }}" >> .env
+          echo "GOAL_SERVICE_URL=http://goal-service:${{ secrets.GOAL_PORT }}" >> .env
+          echo "DASHBOARD_SERVICE_URL=http://dashboard-service:${{ secrets.DASHBOARD_PORT }}" >> .env
+          
+          echo "S3_URL=${{ secrets.S3_URL }}" >> .env
+          echo "S3_ACCESS_KEY=${{ secrets.S3_ACCESS_KEY }}" >> .env
+          echo "S3_SECRET_KEY=${{ secrets.S3_SECRET_KEY }}" >> .env
+          echo "S3_BUCKET=${{ secrets.S3_BUCKET }}" >> .env
+          echo "S3_PUBLIC_URL_PREFIX=${{ secrets.S3_PUBLIC_URL_PREFIX }}" >> .env
+          echo "MINIO_PORT=${{ secrets.MINIO_PORT }}" >> .env
+          echo "MINIO_CONSOLE_PORT=${{ secrets.MINIO_CONSOLE_PORT }}" >> .env
 
-          echo "BUDGET_SERVICE_URL=${{ secrets.BUDGET_SERVICE_URL }}" >> .env
-          echo "TRANSACTION_SERVICE_URL=${{ secrets.TRANSACTION_SERVICE_URL }}" >> .env
-          echo "BANK_SERVICE_URL=${{ secrets.BANK_SERVICE_URL }}" >> .env
-          echo "GOAL_SERVICE_URL=${{ secrets.GOAL_SERVICE_URL }}" >> .env
-
-      - name: Start Services (DB and Spring Apps)
+      - name: Start Services
         run: docker compose up -d --build
 
-      - name: Wait for Budget Service to be healthy
-        uses: nev7n/wait_for_response@v1
-        with:
-          url: http://localhost:${{ secrets.BUDGET_PORT }}/actuator/health
-          interval: 10000
-          timeout: 120000
+      - name: Wait for Services
+        run: sleep 45
 
-      - name: Install Newman and dependencies
-        run: npm install -g newman newman-reporter-htmlextra
-
-      - name: Run Postman Collection via Newman
+      - name: Run Newman Tests
         run: |
+          npm install -g newman
+          
           newman run postman/API-SmartBudget.json \
-            --env-var "budgetBaseUrl=http://localhost:${{ secrets.BUDGET_PORT }}/api/v1" \
-            --env-var "transactionBaseUrl=http://localhost:${{ secrets.TRANSACTION_PORT }}/api/v1" \
-            --env-var "goalBaseUrl=http://localhost:${{ secrets.GOAL_PORT }}/api/v1" \
-            --env-var "dashboardBaseUrl=http://localhost:${{ secrets.DASHBOARD_PORT }}/api/v1" \
-            --env-var "authBaseUrl=http://localhost:${{ secrets.AUTH_PORT }}/api/v1" \
+            --env-var "authBaseUrl=http://localhost:8080/api/v1" \
+            --env-var "budgetBaseUrl=http://localhost:8080/api/v1" \
+            --env-var "categoryBaseUrl=http://localhost:8080/api/v1" \
+            --env-var "transactionBaseUrl=http://localhost:8080/api/v1" \
+            --env-var "goalBaseUrl=http://localhost:8080/api/v1" \
+            --env-var "dashboardBaseUrl=http://localhost:8080/api/v1" \
             --reporters cli
 
-      - name: Dump Docker Logs on Failure
+      - name: Dump Logs on Failure
         if: failure()
-        run: docker compose logs
+        run: |
+          docker compose logs gateway-service
+          docker compose logs auth-service
 
       - name: Stop Services
         if: always()

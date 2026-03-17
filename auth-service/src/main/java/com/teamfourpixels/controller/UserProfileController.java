@@ -4,7 +4,9 @@ import com.teamfourpixels.dto.*;
 import com.teamfourpixels.service.UserProfileService;
 import com.teamfourpixels.util.UserContext;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/v1/profile")
@@ -20,6 +22,11 @@ public class UserProfileController {
     @PutMapping
     public UserProfileDto updateProfile(@RequestBody UpdateProfileRequest req) {
         return service.updateProfile(UserContext.getUserId(), req);
+    }
+
+    @PostMapping(value = "/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public UserProfileDto uploadAvatar(@RequestParam("file") MultipartFile file) {
+        return service.uploadAvatar(UserContext.getUserId(), file);
     }
 
     @PostMapping("/forgot-password")
