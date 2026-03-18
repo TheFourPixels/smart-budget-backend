@@ -32,4 +32,10 @@ public class BudgetLimit {
     @Column(nullable = false, length = 10)
     private LimitType limitType;
 
+    @Column(name = "is_80_notified")
+    private boolean is80Notified = false;
+
+    @Column(name = "is_100_notified")
+    private boolean is100Notified = false;
+
 }

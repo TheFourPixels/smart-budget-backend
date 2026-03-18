@@ -17,6 +17,7 @@
         <module>dashboard-service</module>
         <module>auth-service</module>
         <module>gateway-service</module>
+        <module>notification-service</module>
     </modules>
 
     <properties>

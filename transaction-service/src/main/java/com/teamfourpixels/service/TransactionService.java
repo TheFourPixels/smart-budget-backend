@@ -1,9 +1,6 @@
 package com.teamfourpixels.service;
 
-import com.teamfourpixels.dto.CategoryTotalSpentDto;
-import com.teamfourpixels.dto.CreateTransactionRequest;
-import com.teamfourpixels.dto.SplitTransactionRequest;
-import com.teamfourpixels.dto.TransactionDto;
+import com.teamfourpixels.dto.*;
 import com.teamfourpixels.entity.Transaction;
 import com.teamfourpixels.entity.TransactionSplit;
 import com.teamfourpixels.enums.OperationType;
@@ -13,8 +10,10 @@ import com.teamfourpixels.repository.TransactionSplitRepository;
 import com.teamfourpixels.service.classification.ClassificationStrategy;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.*;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,11 +21,14 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class TransactionService {
@@ -37,23 +39,21 @@ public class TransactionService {
     private final CategoryQueryService categoryQueryService;
     private final List<ClassificationStrategy> classificationStrategies;
 
+    private final KafkaTemplate<String, TransactionCreatedEvent> kafkaTemplate;
+
     private static final Long UNCATEGORIZED_ID = 999L;
     private static final Long SPLIT_CATEGORY_ID = -1L;
 
-    @Transactional(readOnly = true)
-    public Page<TransactionDto> getTransactionsPage(Long userId, int page, int size,
-                                                    Long categoryId, String query,
-                                                    Instant start, Instant end) {
-        Specification<Transaction> spec = new TransactionFilterSpecification(
-                userId, categoryId, query, start, end);
+    @Transactional
+    public TransactionDto createTransaction(Long userId, CreateTransactionRequest request) {
+        Transaction t = mapper.toEntity(request, userId);
+        Transaction saved = repository.save(t);
 
-        Pageable pageable = PageRequest.of(page, size, Sort.by("transactionTime").descending());
-        return repository.findAll(spec, pageable).map(mapper::toDto);
-    }
+        if (saved.getType() == OperationType.EXPENSE) {
+            sendTransactionEvent(saved);
+        }
 
-    @Transactional(readOnly = true)
-    public TransactionDto getTransactionDetails(Long userId, Long id) {
-        return mapper.toDto(getByIdAndUser(id, userId));
+        return mapper.toDto(saved);
     }
 
     @Async
@@ -71,14 +71,53 @@ public class TransactionService {
                 continue;
             }
             Transaction transaction = convertBankDtoToTransaction(userId, bankDto);
-
             Long categoryId = autoClassify(transaction, sortedStrategies);
             transaction.setCategoryId(categoryId);
-            repository.save(transaction);
+
+            Transaction saved = repository.save(transaction);
+
+            if (saved.getType() == OperationType.EXPENSE) {
+                sendTransactionEvent(saved);
+            }
+
             newCount++;
         }
 
         return CompletableFuture.completedFuture(newCount);
+    }
+
+    private void sendTransactionEvent(Transaction transaction) {
+        try {
+            TransactionCreatedEvent event = TransactionCreatedEvent.builder()
+                    .transactionId(transaction.getId())
+                    .userId(transaction.getUserId())
+                    .categoryId(transaction.getCategoryId())
+                    .amount(transaction.getAmount())
+                    .description(transaction.getDescription())
+                    .timestamp(LocalDateTime.ofInstant(transaction.getTransactionTime(), ZoneId.systemDefault()))
+                    .build();
+
+            kafkaTemplate.send("transaction-events", transaction.getUserId().toString(), event);
+            log.info("Sent transaction event to Kafka for transaction: {}", transaction.getId());
+        } catch (Exception e) {
+            log.error("Failed to send Kafka event for transaction {}: {}", transaction.getId(), e.getMessage());
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public Page<TransactionDto> getTransactionsPage(Long userId, int page, int size,
+                                                    Long categoryId, String query,
+                                                    Instant start, Instant end) {
+        Specification<Transaction> spec = new TransactionFilterSpecification(
+                userId, categoryId, query, start, end);
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by("transactionTime").descending());
+        return repository.findAll(spec, pageable).map(mapper::toDto);
+    }
+
+    @Transactional(readOnly = true)
+    public TransactionDto getTransactionDetails(Long userId, Long id) {
+        return mapper.toDto(getByIdAndUser(id, userId));
     }
 
     @Transactional
@@ -90,8 +129,7 @@ public class TransactionService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         if (totalSplitAmount.compareTo(transaction.getAmount().abs()) != 0) {
-            throw new IllegalArgumentException("Сумма частей не совпадает с суммой транзакции: "
-                    + totalSplitAmount + " != " + transaction.getAmount());
+            throw new IllegalArgumentException("Сумма частей не совпадает с суммой транзакции");
         }
 
         List<TransactionSplit> existingSplits = splitRepository.findByTransactionId(transactionId);
@@ -150,9 +188,7 @@ public class TransactionService {
         try {
             categoryQueryService.getCategoryById(categoryId);
         } catch (EntityNotFoundException e) {
-            throw new IllegalArgumentException(
-                    "Ошибка: Невозможно изменить категорию. Категория с ID " + categoryId + " не найдена."
-            );
+            throw new IllegalArgumentException("Категория не найдена.");
         }
 
         t.setCategoryId(categoryId);
@@ -163,12 +199,6 @@ public class TransactionService {
         return repository.findById(id)
                 .filter(t -> t.getUserId().equals(userId))
                 .orElseThrow(() -> new EntityNotFoundException("Транзакция не найдена"));
-    }
-
-    @Transactional
-    public TransactionDto createTransaction(Long userId, CreateTransactionRequest request) {
-        Transaction t = mapper.toEntity(request, userId);
-        return mapper.toDto(repository.save(t));
     }
 
     @Transactional(readOnly = true)

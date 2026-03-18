@@ -18,28 +18,6 @@ services:
       retries: 10
       start_period: 10s
 
-  gateway-service:
-    build: ./gateway-service
-    container_name: gateway-service
-    ports:
-      - "${GATEWAY_PORT}:${GATEWAY_PORT}"
-    environment:
-      GATEWAY_PORT: ${GATEWAY_PORT}
-      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL}
-      BUDGET_SERVICE_URL: ${BUDGET_SERVICE_URL}
-      TRANSACTION_SERVICE_URL: ${TRANSACTION_SERVICE_URL}
-      GOAL_SERVICE_URL: ${GOAL_SERVICE_URL}
-      BANK_SERVICE_URL: ${BANK_SERVICE_URL}
-      DASHBOARD_SERVICE_URL: ${DASHBOARD_SERVICE_URL}
-      JWT_SECRET: ${JWT_SECRET}
-    depends_on:
-      auth-service:
-        condition: service_healthy
-      budget-service:
-        condition: service_healthy
-      transaction-service:
-        condition: service_healthy
-
   minio:
     image: minio/minio
     container_name: smartbudget-minio
@@ -53,6 +31,57 @@ services:
     volumes:
       - minio_data:/data
     restart: always
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.4
+    container_name: smartbudget-zookeeper
+    restart: always
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - default
+
+  kafka:
+    image: confluentinc/cp-kafka:7.4.4
+    container_name: smartbudget-kafka
+    restart: always
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    networks:
+      - default
+
+  gateway-service:
+    build: ./gateway-service
+    container_name: gateway-service
+    ports:
+      - "${GATEWAY_PORT}:${GATEWAY_PORT}"
+    environment:
+      GATEWAY_PORT: ${GATEWAY_PORT}
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL}
+      BUDGET_SERVICE_URL: ${BUDGET_SERVICE_URL}
+      TRANSACTION_SERVICE_URL: ${TRANSACTION_SERVICE_URL}
+      GOAL_SERVICE_URL: ${GOAL_SERVICE_URL}
+      BANK_SERVICE_URL: ${BANK_SERVICE_URL}
+      DASHBOARD_SERVICE_URL: ${DASHBOARD_SERVICE_URL}
+      NOTIFICATION_SERVICE_URL: ${NOTIFICATION_SERVICE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      budget-service:
+        condition: service_healthy
+      transaction-service:
+        condition: service_healthy
 
   auth-service:
     build: ./auth-service
@@ -123,11 +152,14 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRATION: ${JWT_EXPIRATION}
       SPRING_PROFILES_ACTIVE: docker
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
     depends_on:
       db:
         condition: service_healthy
       goal-service:
         condition: service_healthy
+      kafka:
+        condition: service_started
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:${BUDGET_PORT}/actuator/health"]
       interval: 10s
@@ -151,11 +183,14 @@ services:
       BUDGET_SERVICE_URL: ${BUDGET_SERVICE_URL}
       BANK_SERVICE_URL: ${BANK_SERVICE_URL}
       SPRING_PROFILES_ACTIVE: docker
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
     depends_on:
       db:
         condition: service_healthy
       budget-service:
         condition: service_healthy
+      kafka:
+        condition: service_started
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:${TRANSACTION_PORT}/actuator/health"]
       interval: 10s
@@ -217,6 +252,34 @@ services:
       timeout: 5s
       retries: 10
       start_period: 80s
+    restart: on-failure
+
+  notification-service:
+    build: ./notification-service
+    container_name: smartbudget-notification-service
+    environment:
+      SERVER_PORT: ${NOTIFICATION_PORT}
+      DB_HOST: db
+      DB_PORT: ${DB_PORT}
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION}
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
+      NOTIFICATION_SERVICE_URL: ${NOTIFICATION_SERVICE_URL}
+    depends_on:
+      db:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:${NOTIFICATION_PORT}/actuator/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
     restart: on-failure
 
 volumes:
