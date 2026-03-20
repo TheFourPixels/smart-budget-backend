@@ -17,6 +17,11 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Create Firebase config file
+        run: |
+            mkdir -p notification-service/src/main/resources
+            echo "${{ secrets.FIREBASE_KEY_BASE64 }}" | base64 --decode > notification-service/src/main/resources/firebase-service-account.json
+
       - name: Set up JDK 21 and Cache Maven Dependencies
         uses: actions/setup-java@v4
         with:
