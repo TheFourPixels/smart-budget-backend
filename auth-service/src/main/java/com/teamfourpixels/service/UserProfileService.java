@@ -42,7 +42,7 @@ public class UserProfileService {
     public UserProfileDto getProfile(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Пользователь не найден"));
-        return new UserProfileDto(user.getId(), user.getEmail(), user.getName(), user.getAvatarUrl());
+        return new UserProfileDto(user.getId(), user.getEmail(), user.getName(), user.getAvatarUrl(), user.isPushEnabled(), user.isEmailEnabled());
     }
 
     @Transactional
@@ -178,18 +178,18 @@ public class UserProfileService {
             s3Client.createBucket(CreateBucketRequest.builder().bucket(bucketName).build());
 
             String policy = """
-                {
-                  "Statement": [
                     {
-                      "Action": "s3:GetObject",
-                      "Effect": "Allow",
-                      "Principal": "*",
-                      "Resource": "arn:aws:s3:::%s/*"
+                      "Statement": [
+                        {
+                          "Action": "s3:GetObject",
+                          "Effect": "Allow",
+                          "Principal": "*",
+                          "Resource": "arn:aws:s3:::%s/*"
+                        }
+                      ],
+                      "Version": "2012-10-17"
                     }
-                  ],
-                  "Version": "2012-10-17"
-                }
-                """.formatted(bucketName);
+                    """.formatted(bucketName);
 
             s3Client.putBucketPolicy(PutBucketPolicyRequest.builder()
                     .bucket(bucketName)

@@ -68,7 +68,7 @@ public class GoalService {
             budgetClient.get()
                     .uri("/api/v1/budgets/{year}/{month}", year, month)
                     .header(USER_ID_HEADER, userId.toString())
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwt) // <--- Добавляем заголовок
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwt)
                     .retrieve()
                     .onStatus(status -> status == HttpStatus.NOT_FOUND,
                             response -> Mono.error(new IllegalArgumentException(

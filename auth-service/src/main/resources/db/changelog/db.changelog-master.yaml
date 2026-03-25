@@ -3,3 +3,5 @@ databaseChangeLog:
       file: db/changelog/changes/01-create-users-table.sql
   - include:
       file: db/changelog/changes/02-add-user-profile-fields.sql
+  - include:
+      file: db/changelog/changes/03-add-notification-settings.sql

@@ -61,8 +61,14 @@ public abstract class TransactionMapper {
     }
 
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "bankTransactionRefId", constant = "null")
+    @Mapping(target = "userId", source = "userId")
+    @Mapping(target = "transactionTime", source = "request.transactionTime")
+    @Mapping(target = "amount", source = "request.amount")
+    @Mapping(target = "type", source = "request.type")
+    @Mapping(target = "merchant", source = "request.merchant")
+    @Mapping(target = "description", source = "request.description")
     @Mapping(target = "categoryId", source = "request.categoryId", defaultValue = "999L")
+    @Mapping(target = "bankTransactionRefId", ignore = true)
     public abstract Transaction toEntity(CreateTransactionRequest request, Long userId);
 
     @Mapping(target = "id", ignore = true)

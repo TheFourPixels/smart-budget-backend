@@ -24,4 +24,8 @@ public class User {
     private String name;
 
     private String avatarUrl;
+
+    private boolean pushEnabled;
+
+    private boolean emailEnabled;
 }

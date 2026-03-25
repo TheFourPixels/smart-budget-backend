@@ -17,6 +17,11 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Create Firebase config file
+        run: |
+          mkdir -p notification-service/src/main/resources
+          echo "${{ secrets.FIREBASE_KEY_BASE64 }}" | base64 --decode > notification-service/src/main/resources/firebase-service-account.json
+
       - name: Set up JDK 21 and Cache Maven Dependencies
         uses: actions/setup-java@v4
         with:
@@ -29,7 +34,6 @@ jobs:
 
       - name: Create .env file for Docker
         run: |
-      
           echo "GATEWAY_PORT=8080" >> .env
           echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
           echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
@@ -45,13 +49,17 @@ jobs:
           echo "GOAL_PORT=${{ secrets.GOAL_PORT }}" >> .env
           echo "DASHBOARD_PORT=${{ secrets.DASHBOARD_PORT }}" >> .env
           
-      
+          echo "NOTIFICATION_PORT=8086" >> .env
+          echo "KAFKA_BOOTSTRAP_SERVERS=kafka:29092" >> .env
+          
           echo "AUTH_SERVICE_URL=http://auth-service:${{ secrets.AUTH_PORT }}" >> .env
           echo "BUDGET_SERVICE_URL=http://budget-service:${{ secrets.BUDGET_PORT }}" >> .env
           echo "TRANSACTION_SERVICE_URL=http://transaction-service:${{ secrets.TRANSACTION_PORT }}" >> .env
           echo "BANK_SERVICE_URL=http://bank-service:${{ secrets.BANK_PORT }}" >> .env
           echo "GOAL_SERVICE_URL=http://goal-service:${{ secrets.GOAL_PORT }}" >> .env
           echo "DASHBOARD_SERVICE_URL=http://dashboard-service:${{ secrets.DASHBOARD_PORT }}" >> .env
+          
+          echo "NOTIFICATION_SERVICE_URL=http://notification-service:8086" >> .env
           
           echo "S3_URL=${{ secrets.S3_URL }}" >> .env
           echo "S3_ACCESS_KEY=${{ secrets.S3_ACCESS_KEY }}" >> .env
@@ -85,6 +93,7 @@ jobs:
         run: |
           docker compose logs gateway-service
           docker compose logs auth-service
+          docker compose logs budget-service
 
       - name: Stop Services
         if: always()
