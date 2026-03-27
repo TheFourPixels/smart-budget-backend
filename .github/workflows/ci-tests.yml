@@ -49,6 +49,9 @@ jobs:
           echo "GOAL_PORT=${{ secrets.GOAL_PORT }}" >> .env
           echo "DASHBOARD_PORT=${{ secrets.DASHBOARD_PORT }}" >> .env
           
+          echo "AUDIT_PORT=${{ secrets.AUDIT_PORT }}" >> .env
+          echo "AUDIT_SERVICE_URL=http://audit-service:${{ secrets.AUDIT_PORT }}" >> .env
+          
           echo "NOTIFICATION_PORT=8086" >> .env
           echo "KAFKA_BOOTSTRAP_SERVERS=kafka:29092" >> .env
           
@@ -86,6 +89,7 @@ jobs:
             --env-var "transactionBaseUrl=http://localhost:8080/api/v1" \
             --env-var "goalBaseUrl=http://localhost:8080/api/v1" \
             --env-var "dashboardBaseUrl=http://localhost:8080/api/v1" \
+            --env-var "auditBaseUrl=http://localhost:8080/api/v1" \
             --reporters cli
 
       - name: Dump Logs on Failure
@@ -94,6 +98,7 @@ jobs:
           docker compose logs gateway-service
           docker compose logs auth-service
           docker compose logs budget-service
+          docker compose logs audit-service
 
       - name: Stop Services
         if: always()
