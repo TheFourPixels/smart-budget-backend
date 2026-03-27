@@ -1,10 +1,13 @@
 package com.teamfourpixels.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.teamfourpixels.dto.*;
+import com.teamfourpixels.entity.OutboxEvent;
 import com.teamfourpixels.entity.Transaction;
 import com.teamfourpixels.entity.TransactionSplit;
 import com.teamfourpixels.enums.OperationType;
 import com.teamfourpixels.mapper.TransactionMapper;
+import com.teamfourpixels.repository.OutboxEventRepository;
 import com.teamfourpixels.repository.TransactionRepository;
 import com.teamfourpixels.repository.TransactionSplitRepository;
 import com.teamfourpixels.service.classification.ClassificationStrategy;
@@ -26,6 +29,7 @@ import java.time.ZoneId;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 @Slf4j
@@ -41,6 +45,9 @@ public class TransactionService {
 
     private final KafkaTemplate<String, TransactionCreatedEvent> kafkaTemplate;
 
+    private final OutboxEventRepository outboxEventRepository;
+    private final ObjectMapper objectMapper;
+
     private static final Long UNCATEGORIZED_ID = 999L;
     private static final Long SPLIT_CATEGORY_ID = -1L;
 
@@ -53,8 +60,36 @@ public class TransactionService {
             sendTransactionEvent(saved);
         }
 
+        log.info("Попытка сохранить событие TRANSACTION_CREATED в Outbox для транзакции {}", saved.getId());
+
+        AuditEventDto createEvent = AuditEventDto.builder()
+                .eventId(UUID.randomUUID().toString())
+                .action("TRANSACTION_CREATED")
+                .userId(userId)
+                .transactionId(saved.getId())
+                .newCategoryId(saved.getCategoryId())
+                .timestamp(LocalDateTime.now())
+                .build();
+
+        try {
+            OutboxEvent outboxEvent = OutboxEvent.builder()
+                    .id(createEvent.getEventId())
+                    .aggregateId(saved.getId().toString())
+                    .eventType("AuditEvent")
+                    .payload(objectMapper.writeValueAsString(createEvent))
+                    .status("PENDING")
+                    .createdAt(LocalDateTime.now())
+                    .build();
+
+            outboxEventRepository.save(outboxEvent);
+            log.info("Событие TRANSACTION_CREATED успешно сохранено в таблицу outbox!");
+        } catch (Exception e) {
+            log.error("КРИТИЧЕСКАЯ ОШИБКА сохранения в Outbox: {}", e.getMessage());
+        }
+
         return mapper.toDto(saved);
     }
+
 
     @Async
     @Transactional
@@ -78,6 +113,29 @@ public class TransactionService {
 
             if (saved.getType() == OperationType.EXPENSE) {
                 sendTransactionEvent(saved);
+            }
+
+            AuditEventDto importEvent = AuditEventDto.builder()
+                    .eventId(UUID.randomUUID().toString())
+                    .action("TRANSACTION_IMPORTED")
+                    .userId(userId)
+                    .transactionId(saved.getId())
+                    .newCategoryId(saved.getCategoryId())
+                    .timestamp(LocalDateTime.now())
+                    .build();
+
+            try {
+                OutboxEvent outboxEvent = OutboxEvent.builder()
+                        .id(importEvent.getEventId())
+                        .aggregateId(saved.getId().toString())
+                        .eventType("TRANSACTION_IMPORTED")
+                        .payload(objectMapper.writeValueAsString(importEvent))
+                        .status("PENDING")
+                        .createdAt(LocalDateTime.now())
+                        .build();
+                outboxEventRepository.save(outboxEvent);
+            } catch (Exception e) {
+                log.error("Ошибка сериализации события аудита (импорт)", e);
             }
 
             newCount++;
@@ -123,6 +181,7 @@ public class TransactionService {
     @Transactional
     public TransactionDto splitTransaction(Long userId, Long transactionId, SplitTransactionRequest request) {
         Transaction transaction = getByIdAndUser(transactionId, userId);
+        Long oldCategoryId = transaction.getCategoryId();
 
         BigDecimal totalSplitAmount = request.getSplits().stream()
                 .map(SplitTransactionRequest.SplitPartRequest::getAmount)
@@ -147,6 +206,30 @@ public class TransactionService {
 
         transaction.setCategoryId(SPLIT_CATEGORY_ID);
         repository.save(transaction);
+
+        AuditEventDto splitEvent = AuditEventDto.builder()
+                .eventId(UUID.randomUUID().toString())
+                .action("TRANSACTION_SPLIT")
+                .userId(userId)
+                .transactionId(transactionId)
+                .oldCategoryId(oldCategoryId)
+                .newCategoryId(SPLIT_CATEGORY_ID)
+                .timestamp(LocalDateTime.now())
+                .build();
+
+        try {
+            OutboxEvent outboxEvent = OutboxEvent.builder()
+                    .id(splitEvent.getEventId())
+                    .aggregateId(transactionId.toString())
+                    .eventType("TRANSACTION_SPLIT")
+                    .payload(objectMapper.writeValueAsString(splitEvent))
+                    .status("PENDING")
+                    .createdAt(LocalDateTime.now())
+                    .build();
+            outboxEventRepository.save(outboxEvent);
+        } catch (Exception e) {
+            log.error("Ошибка сериализации события аудита (сплит)", e);
+        }
 
         return mapper.toDto(transaction);
     }
@@ -179,6 +262,7 @@ public class TransactionService {
     @Transactional
     public TransactionDto updateTransactionCategory(Long userId, Long id, Long categoryId) {
         Transaction t = getByIdAndUser(id, userId);
+        Long oldCategoryId = t.getCategoryId();
 
         if (t.getCategoryId().equals(SPLIT_CATEGORY_ID)) {
             List<TransactionSplit> existingSplits = splitRepository.findByTransactionId(id);
@@ -191,8 +275,37 @@ public class TransactionService {
             throw new IllegalArgumentException("Категория не найдена.");
         }
 
-        t.setCategoryId(categoryId);
-        return mapper.toDto(repository.save(t));
+        if (!categoryId.equals(oldCategoryId)) {
+            t.setCategoryId(categoryId);
+            t = repository.save(t);
+
+            AuditEventDto eventDto = AuditEventDto.builder()
+                    .eventId(UUID.randomUUID().toString())
+                    .action("CATEGORY_CHANGED")
+                    .userId(userId)
+                    .transactionId(id)
+                    .oldCategoryId(oldCategoryId)
+                    .newCategoryId(categoryId)
+                    .timestamp(LocalDateTime.now())
+                    .build();
+
+            try {
+                OutboxEvent outboxEvent = OutboxEvent.builder()
+                        .id(eventDto.getEventId())
+                        .aggregateId(String.valueOf(id))
+                        .eventType("CATEGORY_CHANGED")
+                        .payload(objectMapper.writeValueAsString(eventDto))
+                        .status("PENDING")
+                        .createdAt(LocalDateTime.now())
+                        .build();
+                outboxEventRepository.save(outboxEvent);
+            } catch (Exception e) {
+                log.error("Ошибка при сериализации события аудита", e);
+                throw new RuntimeException("Ошибка при сохранении события аудита", e);
+            }
+        }
+
+        return mapper.toDto(t);
     }
 
     private Transaction getByIdAndUser(Long id, Long userId) {

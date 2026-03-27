@@ -55,6 +55,11 @@ spring:
           predicates:
             - Path=/api/v1/notifications/**
 
+        - id: audit-service
+          uri: ${AUDIT_SERVICE_URL}
+          predicates:
+            - Path=/api/v1/audit/**
+
   servlet:
     multipart:
       max-file-size: 5MB
