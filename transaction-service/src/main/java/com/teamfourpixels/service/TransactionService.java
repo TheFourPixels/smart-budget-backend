@@ -56,15 +56,10 @@ public class TransactionService {
             AuditEventDto eventDto = mapper.toAuditEventDto(transaction, action, oldCategoryId);
 
             OutboxEvent outboxEvent = OutboxEvent.builder()
-                    .aggregateId(transaction.getId().toString())
-                    .eventType(action)
                     .payload(objectMapper.writeValueAsString(eventDto))
-                    .status("PENDING")
-                    .createdAt(LocalDateTime.now())
                     .build();
 
             outboxEventRepository.save(outboxEvent);
-            log.info("Событие {} успешно сохранено в Outbox для транзакции {}", action, transaction.getId());
         } catch (Exception e) {
             log.error("Ошибка при подготовке события Outbox ({}): {}", action, e.getMessage());
         }
