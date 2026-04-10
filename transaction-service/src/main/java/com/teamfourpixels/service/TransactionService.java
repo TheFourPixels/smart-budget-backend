@@ -87,33 +87,50 @@ public class TransactionService {
     @Async
     @Transactional
     public CompletableFuture<Integer> importAndClassifyTransactions(Long userId, int year, int month) {
-        List<TransactionDto> bankTransactions = bankServiceClient.fetchTransactions(year, month);
-        int newCount = 0;
+        try {
+            log.info("Начинаем импорт транзакций для пользователя {} за {}/{}", userId, month, year);
+            List<TransactionDto> bankTransactions = bankServiceClient.fetchTransactions(year, month);
 
-        List<ClassificationStrategy> sortedStrategies = classificationStrategies.stream()
-                .sorted(Comparator.comparingInt(ClassificationStrategy::getPriority))
-                .toList();
-
-        for (TransactionDto bankDto : bankTransactions) {
-            if (repository.findByUserIdAndBankTransactionRefId(userId, bankDto.getExternalId()).isPresent()) {
-                continue;
-            }
-            Transaction transaction = convertBankDtoToTransaction(userId, bankDto);
-            Long categoryId = autoClassify(transaction, sortedStrategies);
-            transaction.setCategoryId(categoryId);
-
-            Transaction saved = repository.save(transaction);
-
-            if (saved.getType() == OperationType.EXPENSE) {
-                sendTransactionEvent(saved);
+            if (bankTransactions == null || bankTransactions.isEmpty()) {
+                log.warn("Банк-сервис вернул пустой список транзакций!");
+                return CompletableFuture.completedFuture(0);
             }
 
-            saveAuditToOutbox(saved, "TRANSACTION_IMPORTED", null);
+            int newCount = 0;
+            List<ClassificationStrategy> sortedStrategies = classificationStrategies.stream()
+                    .sorted(Comparator.comparingInt(ClassificationStrategy::getPriority))
+                    .toList();
 
-            newCount++;
+            for (TransactionDto bankDto : bankTransactions) {
+                if (repository.findByUserIdAndBankTransactionRefId(userId, bankDto.getExternalId()).isPresent()) {
+                    continue;
+                }
+
+                Transaction transaction = convertBankDtoToTransaction(userId, bankDto);
+                Long categoryId = autoClassify(transaction, sortedStrategies);
+                transaction.setCategoryId(categoryId);
+
+                Transaction saved = repository.save(transaction);
+
+                if (saved.getType() == OperationType.EXPENSE) {
+                    try {
+                        sendTransactionEvent(saved);
+                    } catch (Exception e) {
+                        log.error("Ошибка отправки в Kafka для транзакции {}: {}", saved.getId(), e.getMessage());
+                    }
+                }
+
+                saveAuditToOutbox(saved, "TRANSACTION_IMPORTED", null);
+                newCount++;
+            }
+
+            log.info("Успешно импортировано {} новых транзакций", newCount);
+            return CompletableFuture.completedFuture(newCount);
+
+        } catch (Exception e) {
+            log.error("КРИТИЧЕСКАЯ ОШИБКА при импорте транзакций для пользователя {}: {}", userId, e.getMessage(), e);
+            return CompletableFuture.failedFuture(e);
         }
-
-        return CompletableFuture.completedFuture(newCount);
     }
 
     @Transactional
