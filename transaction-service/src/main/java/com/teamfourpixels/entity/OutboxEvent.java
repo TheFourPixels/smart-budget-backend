@@ -5,7 +5,7 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "outbox")
+@Table(name = "outbox_events")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -13,17 +13,20 @@ import java.time.LocalDateTime;
 @Builder
 public class OutboxEvent {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private String id;
+
+    @Column(name = "aggregate_id", nullable = false)
+    private String aggregateId;
+
+    @Column(name = "event_type", nullable = false)
+    private String eventType;
 
     @Column(columnDefinition = "TEXT", nullable = false)
     private String payload;
 
+    @Column(nullable = false)
+    private String status;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
-
-    @PrePersist
-    protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-    }
 }
