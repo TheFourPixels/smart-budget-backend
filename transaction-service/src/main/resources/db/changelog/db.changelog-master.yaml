@@ -5,3 +5,5 @@ databaseChangeLog:
       file: db/changelog/changes/02-create-categorization-rules-table.sql
   - include:
       file: db/changelog/changes/03-create-transaction-splits-table.sql
+  - include:
+      file: db/changelog/changes/04-create-outbox-table.sql

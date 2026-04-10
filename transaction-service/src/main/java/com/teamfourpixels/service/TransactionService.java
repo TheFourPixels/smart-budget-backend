@@ -1,10 +1,13 @@
 package com.teamfourpixels.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.teamfourpixels.dto.*;
+import com.teamfourpixels.entity.OutboxEvent;
 import com.teamfourpixels.entity.Transaction;
 import com.teamfourpixels.entity.TransactionSplit;
 import com.teamfourpixels.enums.OperationType;
 import com.teamfourpixels.mapper.TransactionMapper;
+import com.teamfourpixels.repository.OutboxEventRepository;
 import com.teamfourpixels.repository.TransactionRepository;
 import com.teamfourpixels.repository.TransactionSplitRepository;
 import com.teamfourpixels.service.classification.ClassificationStrategy;
@@ -41,8 +44,32 @@ public class TransactionService {
 
     private final KafkaTemplate<String, TransactionCreatedEvent> kafkaTemplate;
 
+    private final OutboxEventRepository outboxEventRepository;
+    private final ObjectMapper objectMapper;
+
     private static final Long UNCATEGORIZED_ID = 999L;
     private static final Long SPLIT_CATEGORY_ID = -1L;
+
+
+    private void saveAuditToOutbox(Transaction transaction, String action, Long oldCategoryId) {
+        try {
+            AuditEventDto eventDto = mapper.toAuditEventDto(transaction, action, oldCategoryId);
+
+            OutboxEvent outboxEvent = OutboxEvent.builder()
+                    .id(java.util.UUID.randomUUID().toString())
+                    .aggregateId(transaction.getId().toString())
+                    .eventType(action)
+                    .payload(objectMapper.writeValueAsString(eventDto))
+                    .status("PENDING")
+                    .createdAt(LocalDateTime.now())
+                    .build();
+
+            outboxEventRepository.save(outboxEvent);
+            log.info("Событие {} успешно сохранено в Outbox для транзакции {}", action, transaction.getId());
+        } catch (Exception e) {
+            log.error("Ошибка при подготовке события Outbox ({}): {}", action, e.getMessage());
+        }
+    }
 
     @Transactional
     public TransactionDto createTransaction(Long userId, CreateTransactionRequest request) {
@@ -53,37 +80,120 @@ public class TransactionService {
             sendTransactionEvent(saved);
         }
 
+        saveAuditToOutbox(saved, "TRANSACTION_CREATED", null);
+
         return mapper.toDto(saved);
     }
 
     @Async
     @Transactional
     public CompletableFuture<Integer> importAndClassifyTransactions(Long userId, int year, int month) {
-        List<TransactionDto> bankTransactions = bankServiceClient.fetchTransactions(year, month);
-        int newCount = 0;
+        try {
+            log.info("Начинаем импорт транзакций для пользователя {} за {}/{}", userId, month, year);
+            List<TransactionDto> bankTransactions = bankServiceClient.fetchTransactions(year, month);
 
-        List<ClassificationStrategy> sortedStrategies = classificationStrategies.stream()
-                .sorted(Comparator.comparingInt(ClassificationStrategy::getPriority))
-                .toList();
-
-        for (TransactionDto bankDto : bankTransactions) {
-            if (repository.findByUserIdAndBankTransactionRefId(userId, bankDto.getExternalId()).isPresent()) {
-                continue;
-            }
-            Transaction transaction = convertBankDtoToTransaction(userId, bankDto);
-            Long categoryId = autoClassify(transaction, sortedStrategies);
-            transaction.setCategoryId(categoryId);
-
-            Transaction saved = repository.save(transaction);
-
-            if (saved.getType() == OperationType.EXPENSE) {
-                sendTransactionEvent(saved);
+            if (bankTransactions == null || bankTransactions.isEmpty()) {
+                log.warn("Банк-сервис вернул пустой список транзакций!");
+                return CompletableFuture.completedFuture(0);
             }
 
-            newCount++;
+            int newCount = 0;
+            List<ClassificationStrategy> sortedStrategies = classificationStrategies.stream()
+                    .sorted(Comparator.comparingInt(ClassificationStrategy::getPriority))
+                    .toList();
+
+            for (TransactionDto bankDto : bankTransactions) {
+                String uniqueRefId = bankDto.getExternalId() + "-u" + userId;
+
+                if (repository.findByUserIdAndBankTransactionRefId(userId, uniqueRefId).isPresent()) {
+                    continue;
+                }
+
+                Transaction transaction = convertBankDtoToTransaction(userId, bankDto, uniqueRefId);
+                Long categoryId = autoClassify(transaction, sortedStrategies);
+                transaction.setCategoryId(categoryId);
+
+                Transaction saved = repository.save(transaction);
+
+                if (saved.getType() == OperationType.EXPENSE) {
+                    try {
+                        sendTransactionEvent(saved);
+                    } catch (Exception e) {
+                        log.error("Ошибка отправки в Kafka для транзакции {}: {}", saved.getId(), e.getMessage());
+                    }
+                }
+
+                saveAuditToOutbox(saved, "TRANSACTION_IMPORTED", null);
+                newCount++;
+            }
+
+            log.info("Успешно импортировано {} новых транзакций", newCount);
+            return CompletableFuture.completedFuture(newCount);
+
+        } catch (Exception e) {
+            log.error("КРИТИЧЕСКАЯ ОШИБКА при импорте транзакций для пользователя {}: {}", userId, e.getMessage(), e);
+            return CompletableFuture.failedFuture(e);
+        }
+    }
+
+    @Transactional
+    public TransactionDto splitTransaction(Long userId, Long transactionId, SplitTransactionRequest request) {
+        Transaction transaction = getByIdAndUser(transactionId, userId);
+        Long oldCategoryId = transaction.getCategoryId();
+
+        BigDecimal totalSplitAmount = request.getSplits().stream()
+                .map(SplitTransactionRequest.SplitPartRequest::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        if (totalSplitAmount.compareTo(transaction.getAmount().abs()) != 0) {
+            throw new IllegalArgumentException("Сумма частей не совпадает с суммой транзакции");
         }
 
-        return CompletableFuture.completedFuture(newCount);
+        List<TransactionSplit> existingSplits = splitRepository.findByTransactionId(transactionId);
+        splitRepository.deleteAll(existingSplits);
+
+        List<TransactionSplit> newSplits = request.getSplits().stream()
+                .map(req -> TransactionSplit.builder()
+                        .transaction(transaction)
+                        .categoryId(req.getCategoryId())
+                        .amount(req.getAmount())
+                        .description(req.getDescription())
+                        .build())
+                .toList();
+        splitRepository.saveAll(newSplits);
+
+        transaction.setCategoryId(SPLIT_CATEGORY_ID);
+        repository.save(transaction);
+
+        saveAuditToOutbox(transaction, "TRANSACTION_SPLIT", oldCategoryId);
+
+        return mapper.toDto(transaction);
+    }
+
+    @Transactional
+    public TransactionDto updateTransactionCategory(Long userId, Long id, Long categoryId) {
+        Transaction t = getByIdAndUser(id, userId);
+        Long oldCategoryId = t.getCategoryId();
+
+        if (t.getCategoryId().equals(SPLIT_CATEGORY_ID)) {
+            List<TransactionSplit> existingSplits = splitRepository.findByTransactionId(id);
+            splitRepository.deleteAll(existingSplits);
+        }
+
+        try {
+            categoryQueryService.getCategoryById(categoryId);
+        } catch (EntityNotFoundException e) {
+            throw new IllegalArgumentException("Категория не найдена.");
+        }
+
+        if (!categoryId.equals(oldCategoryId)) {
+            t.setCategoryId(categoryId);
+            t = repository.save(t);
+
+            saveAuditToOutbox(t, "CATEGORY_CHANGED", oldCategoryId);
+        }
+
+        return mapper.toDto(t);
     }
 
     private void sendTransactionEvent(Transaction transaction) {
@@ -120,38 +230,7 @@ public class TransactionService {
         return mapper.toDto(getByIdAndUser(id, userId));
     }
 
-    @Transactional
-    public TransactionDto splitTransaction(Long userId, Long transactionId, SplitTransactionRequest request) {
-        Transaction transaction = getByIdAndUser(transactionId, userId);
-
-        BigDecimal totalSplitAmount = request.getSplits().stream()
-                .map(SplitTransactionRequest.SplitPartRequest::getAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        if (totalSplitAmount.compareTo(transaction.getAmount().abs()) != 0) {
-            throw new IllegalArgumentException("Сумма частей не совпадает с суммой транзакции");
-        }
-
-        List<TransactionSplit> existingSplits = splitRepository.findByTransactionId(transactionId);
-        splitRepository.deleteAll(existingSplits);
-
-        List<TransactionSplit> newSplits = request.getSplits().stream()
-                .map(req -> TransactionSplit.builder()
-                        .transaction(transaction)
-                        .categoryId(req.getCategoryId())
-                        .amount(req.getAmount())
-                        .description(req.getDescription())
-                        .build())
-                .toList();
-        splitRepository.saveAll(newSplits);
-
-        transaction.setCategoryId(SPLIT_CATEGORY_ID);
-        repository.save(transaction);
-
-        return mapper.toDto(transaction);
-    }
-
-    private Transaction convertBankDtoToTransaction(Long userId, TransactionDto bankDto) {
+    private Transaction convertBankDtoToTransaction(Long userId, TransactionDto bankDto, String uniqueRefId) {
         BigDecimal absAmount = bankDto.getAmount().abs().setScale(2, RoundingMode.HALF_UP);
         OperationType type = bankDto.getAmount().signum() >= 0 ? OperationType.INCOME : OperationType.EXPENSE;
         return Transaction.builder()
@@ -162,7 +241,7 @@ public class TransactionService {
                 .mcc(bankDto.getMcc())
                 .merchant(bankDto.getMerchantName())
                 .description(bankDto.getDescription())
-                .bankTransactionRefId(bankDto.getExternalId())
+                .bankTransactionRefId(uniqueRefId)
                 .build();
     }
 
@@ -174,25 +253,6 @@ public class TransactionService {
             }
         }
         return UNCATEGORIZED_ID;
-    }
-
-    @Transactional
-    public TransactionDto updateTransactionCategory(Long userId, Long id, Long categoryId) {
-        Transaction t = getByIdAndUser(id, userId);
-
-        if (t.getCategoryId().equals(SPLIT_CATEGORY_ID)) {
-            List<TransactionSplit> existingSplits = splitRepository.findByTransactionId(id);
-            splitRepository.deleteAll(existingSplits);
-        }
-
-        try {
-            categoryQueryService.getCategoryById(categoryId);
-        } catch (EntityNotFoundException e) {
-            throw new IllegalArgumentException("Категория не найдена.");
-        }
-
-        t.setCategoryId(categoryId);
-        return mapper.toDto(repository.save(t));
     }
 
     private Transaction getByIdAndUser(Long id, Long userId) {

@@ -29,13 +29,8 @@ public class TransactionController {
             @RequestParam(required = false) Long startDateMillis,
             @RequestParam(required = false) Long endDateMillis) {
 
-        Instant start = startDateMillis != null
-                ? Instant.ofEpochMilli(startDateMillis)
-                : Instant.EPOCH;
-
-        Instant end = endDateMillis != null
-                ? Instant.ofEpochMilli(endDateMillis)
-                : Instant.now();
+        Instant start = startDateMillis != null ? Instant.ofEpochMilli(startDateMillis) : null;
+        Instant end = endDateMillis != null ? Instant.ofEpochMilli(endDateMillis) : null;
 
         return service.getTransactionsPage(UserContext.getUserId(), page, size, categoryId, query, start, end);
     }

@@ -30,7 +30,7 @@ public class BudgetServiceImpl implements BudgetService {
     private final BudgetMapper budgetMapper;
     private final CategoryRepository categoryRepository;
     private final TransactionRepository transactionRepository;
-    private final KafkaTemplate<String, BudgetLimitEvent> kafkaTemplate;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
 
     @Override
     @Transactional
@@ -50,7 +50,17 @@ public class BudgetServiceImpl implements BudgetService {
         List<BudgetLimit> newLimits = budgetMapper.toLimitEntities(request.getLimits(), budget);
         budget.getLimits().addAll(newLimits);
 
-        return budgetMapper.toDto(budgetRepository.save(budget));
+        Budget savedBudget = budgetRepository.save(budget);
+
+        AuditEventDto budgetEvent = AuditEventDto.builder()
+                .eventId(java.util.UUID.randomUUID().toString())
+                .action("BUDGET_CONFIGURED")
+                .userId(userId)
+                .timestamp(java.time.LocalDateTime.now())
+                .build();
+        kafkaTemplate.send("audit-events", userId.toString(), budgetEvent);
+
+        return budgetMapper.toDto(savedBudget);
     }
 
     @Override
@@ -131,6 +141,14 @@ public class BudgetServiceImpl implements BudgetService {
         budgetRepository.findByUserIdAndYearAndMonth(userId, year, month)
                 .orElseThrow(() -> new EntityNotFoundException("Resource not found"));
         budgetRepository.deleteByUserIdAndYearAndMonth(userId, year, month);
+
+        AuditEventDto deleteEvent = AuditEventDto.builder()
+                .eventId(java.util.UUID.randomUUID().toString())
+                .action("BUDGET_DELETED")
+                .userId(userId)
+                .timestamp(java.time.LocalDateTime.now())
+                .build();
+        kafkaTemplate.send("audit-events", userId.toString(), deleteEvent);
     }
 
     private void validatePercentLimits(CreateBudgetRequest request) {

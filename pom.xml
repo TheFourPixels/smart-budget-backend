@@ -18,6 +18,7 @@
         <module>auth-service</module>
         <module>gateway-service</module>
         <module>notification-service</module>
+        <module>audit-service</module>
     </modules>
 
     <properties>

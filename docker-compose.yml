@@ -20,7 +20,7 @@ services:
 
   minio:
     image: minio/minio
-    container_name: smartbudget-minio
+    container_name: minio
     ports:
       - "${MINIO_PORT}:${MINIO_PORT}"
       - "${MINIO_CONSOLE_PORT}:${MINIO_CONSOLE_PORT}"
@@ -34,7 +34,7 @@ services:
 
   zookeeper:
     image: confluentinc/cp-zookeeper:7.4.4
-    container_name: smartbudget-zookeeper
+    container_name: zookeeper
     restart: always
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
@@ -44,7 +44,7 @@ services:
 
   kafka:
     image: confluentinc/cp-kafka:7.4.4
-    container_name: smartbudget-kafka
+    container_name: kafka
     restart: always
     depends_on:
       - zookeeper
@@ -74,6 +74,7 @@ services:
       BANK_SERVICE_URL: ${BANK_SERVICE_URL}
       DASHBOARD_SERVICE_URL: ${DASHBOARD_SERVICE_URL}
       NOTIFICATION_SERVICE_URL: ${NOTIFICATION_SERVICE_URL}
+      AUDIT_SERVICE_URL: ${AUDIT_SERVICE_URL}
       JWT_SECRET: ${JWT_SECRET}
     depends_on:
       auth-service:
@@ -82,6 +83,26 @@ services:
         condition: service_healthy
       transaction-service:
         condition: service_healthy
+
+  audit-service:
+    build:
+      context: ./audit-service
+    container_name: audit-service
+    ports:
+      - "${AUDIT_PORT}:${AUDIT_PORT}"
+    environment:
+      - SERVER_PORT=${AUDIT_PORT}
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - KAFKA_BOOTSTRAP_SERVERS=${KAFKA_BOOTSTRAP_SERVERS}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRATION=${JWT_EXPIRATION}
+    depends_on:
+      - db
+      - kafka
 
   auth-service:
     build: ./auth-service
@@ -256,7 +277,7 @@ services:
 
   notification-service:
     build: ./notification-service
-    container_name: smartbudget-notification-service
+    container_name: notification-service
     environment:
       SERVER_PORT: ${NOTIFICATION_PORT}
       DB_HOST: db
