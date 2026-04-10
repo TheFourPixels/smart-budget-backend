@@ -11,8 +11,10 @@ import com.teamfourpixels.enums.OperationType;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 
 @Mapper(componentModel = "spring")
 public abstract class TransactionMapper {
@@ -91,5 +93,17 @@ public abstract class TransactionMapper {
         } catch (EntityNotFoundException e) {
             return CategoryDto.builder().id(categoryId).name("Категория не найдена").isSystem(true).build();
         }
+    }
+
+    public AuditEventDto toAuditEventDto(Transaction transaction, String action, Long oldCategoryId) {
+        return AuditEventDto.builder()
+                .eventId(UUID.randomUUID().toString())
+                .action(action)
+                .userId(transaction.getUserId())
+                .transactionId(transaction.getId())
+                .oldCategoryId(oldCategoryId)
+                .newCategoryId(transaction.getCategoryId())
+                .timestamp(LocalDateTime.now())
+                .build();
     }
 }
