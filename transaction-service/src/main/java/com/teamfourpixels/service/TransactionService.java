@@ -56,6 +56,7 @@ public class TransactionService {
             AuditEventDto eventDto = mapper.toAuditEventDto(transaction, action, oldCategoryId);
 
             OutboxEvent outboxEvent = OutboxEvent.builder()
+                    .id(java.util.UUID.randomUUID().toString())
                     .aggregateId(transaction.getId().toString())
                     .eventType(action)
                     .payload(objectMapper.writeValueAsString(eventDto))
@@ -102,11 +103,13 @@ public class TransactionService {
                     .toList();
 
             for (TransactionDto bankDto : bankTransactions) {
-                if (repository.findByUserIdAndBankTransactionRefId(userId, bankDto.getExternalId()).isPresent()) {
+                String uniqueRefId = bankDto.getExternalId() + "-u" + userId;
+
+                if (repository.findByUserIdAndBankTransactionRefId(userId, uniqueRefId).isPresent()) {
                     continue;
                 }
 
-                Transaction transaction = convertBankDtoToTransaction(userId, bankDto);
+                Transaction transaction = convertBankDtoToTransaction(userId, bankDto, uniqueRefId);
                 Long categoryId = autoClassify(transaction, sortedStrategies);
                 transaction.setCategoryId(categoryId);
 
@@ -227,7 +230,7 @@ public class TransactionService {
         return mapper.toDto(getByIdAndUser(id, userId));
     }
 
-    private Transaction convertBankDtoToTransaction(Long userId, TransactionDto bankDto) {
+    private Transaction convertBankDtoToTransaction(Long userId, TransactionDto bankDto, String uniqueRefId) {
         BigDecimal absAmount = bankDto.getAmount().abs().setScale(2, RoundingMode.HALF_UP);
         OperationType type = bankDto.getAmount().signum() >= 0 ? OperationType.INCOME : OperationType.EXPENSE;
         return Transaction.builder()
@@ -238,7 +241,7 @@ public class TransactionService {
                 .mcc(bankDto.getMcc())
                 .merchant(bankDto.getMerchantName())
                 .description(bankDto.getDescription())
-                .bankTransactionRefId(bankDto.getExternalId())
+                .bankTransactionRefId(uniqueRefId)
                 .build();
     }
 

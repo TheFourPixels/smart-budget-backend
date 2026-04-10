@@ -24,7 +24,13 @@ public class TransactionFilterSpecification implements Specification<Transaction
 
         predicate = cb.and(predicate, cb.equal(root.get("userId"), userId));
 
-        predicate = cb.and(predicate, cb.between(root.get("transactionTime"), start, end));
+        if (start != null && end != null) {
+            predicate = cb.and(predicate, cb.between(root.get("transactionTime"), start, end));
+        } else if (start != null) {
+            predicate = cb.and(predicate, cb.greaterThanOrEqualTo(root.get("transactionTime"), start));
+        } else if (end != null) {
+            predicate = cb.and(predicate, cb.lessThanOrEqualTo(root.get("transactionTime"), end));
+        }
 
         if (categoryId != null) {
             predicate = cb.and(predicate, cb.equal(root.get("categoryId"), categoryId));
@@ -32,7 +38,6 @@ public class TransactionFilterSpecification implements Specification<Transaction
 
         if (this.query != null && !this.query.isBlank()) {
             String pattern = "%" + this.query.toLowerCase() + "%";
-
             Predicate searchPredicate = cb.or(
                     cb.like(cb.lower(root.get("merchant")), pattern),
                     cb.like(cb.lower(root.get("description")), pattern)
