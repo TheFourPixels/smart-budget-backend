@@ -20,10 +20,13 @@ spring:
       bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
       group-id: audit-group
       auto-offset-reset: earliest
+      # Используем ErrorHandlingDeserializer для надежности
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
       properties:
+        # Указываем основной десериализатор для значений
         spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
+        # Разрешаем доверяемые пакеты для десериализации DTO
         spring.json.trusted.packages: "com.teamfourpixels.dto"
 
 jwt:

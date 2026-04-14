@@ -1,4 +1,3 @@
--- Создаем основную таблицу (Хранилище)
 CREATE TABLE IF NOT EXISTS smartbudget_analytics.analytics_events (
     eventId String,
     eventType String,
@@ -11,7 +10,6 @@ CREATE TABLE IF NOT EXISTS smartbudget_analytics.analytics_events (
 PARTITION BY toYYYYMM(event_date)
 ORDER BY (event_date, eventType, userId);
 
--- Создаем очередь Kafka
 CREATE TABLE IF NOT EXISTS smartbudget_analytics.events_queue (
     eventId String,
     eventType String,
@@ -27,7 +25,6 @@ SETTINGS
     kafka_format = 'JSONEachRow',
     kafka_skip_broken_messages = 1;
 
--- Создаем мостик (Materialized View)
 CREATE MATERIALIZED VIEW IF NOT EXISTS smartbudget_analytics.events_mv TO smartbudget_analytics.analytics_events AS
 SELECT
     eventId, eventType, userId,
