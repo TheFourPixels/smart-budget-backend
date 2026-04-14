@@ -1,5 +1,6 @@
 package com.teamfourpixels.service;
 
+import com.teamfourpixels.dto.AnalyticsEventDto;
 import com.teamfourpixels.dto.CreateGoalRequest;
 import com.teamfourpixels.dto.GoalDto;
 import com.teamfourpixels.entity.Goal;
@@ -7,9 +8,11 @@ import com.teamfourpixels.mapper.GoalMapper;
 import com.teamfourpixels.repository.GoalRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,17 +22,22 @@ import reactor.core.publisher.Mono;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class GoalService {
     private final GoalRepository repository;
     private final GoalMapper mapper;
-
     private final WebClient budgetClient;
+
+    private final KafkaTemplate<String, Object> analyticsKafkaTemplate;
+    private static final String ANALYTICS_TOPIC = "analytics-events";
 
     private static final String USER_ID_HEADER = "X-User-Id";
 
@@ -105,6 +113,9 @@ public class GoalService {
         goal.setUserId(userId);
         Goal savedGoal = repository.save(goal);
 
+        sendAnalyticsEvent(userId, "GOAL_CREATED",
+                String.format("{\"goalId\":%d, \"targetAmount\":%s}", savedGoal.getId(), savedGoal.getTargetAmount()));
+
         return addCalculatedFields(savedGoal);
     }
 
@@ -142,11 +153,21 @@ public class GoalService {
     public GoalDto contribute(Long userId, Long id, BigDecimal amount) {
         Goal goal = getByIdAndUser(id, userId);
 
-        goal.setSavedAmount(goal.getSavedAmount().add(amount));
-        if (goal.getSavedAmount().compareTo(goal.getTargetAmount()) > 0) {
-            goal.setSavedAmount(goal.getTargetAmount());
+        BigDecimal amountBefore = goal.getSavedAmount();
+        BigDecimal target = goal.getTargetAmount();
+
+        goal.setSavedAmount(amountBefore.add(amount));
+        if (goal.getSavedAmount().compareTo(target) > 0) {
+            goal.setSavedAmount(target);
         }
+
         Goal savedGoal = repository.save(goal);
+
+        if (amountBefore.compareTo(target) < 0 && savedGoal.getSavedAmount().compareTo(target) >= 0) {
+            sendAnalyticsEvent(userId, "GOAL_ACHIEVED", "{\"goalId\":" + id + "}");
+            log.info("Пользователь {} достиг финансовой цели {}", userId, id);
+        }
+
         return addCalculatedFields(savedGoal);
     }
 
@@ -168,5 +189,23 @@ public class GoalService {
 
         Goal savedGoal = repository.save(goal);
         return addCalculatedFields(savedGoal);
+    }
+
+    private void sendAnalyticsEvent(Long userId, String eventType, String payload) {
+        try {
+            AnalyticsEventDto event = AnalyticsEventDto.builder()
+                    .eventId(UUID.randomUUID().toString())
+                    .eventType(eventType)
+                    .userId(userId)
+                    .timestamp(LocalDateTime.now())
+                    .platform("UNKNOWN")
+                    .payload(payload)
+                    .build();
+
+            analyticsKafkaTemplate.send(ANALYTICS_TOPIC, userId.toString(), event);
+            log.info("Аналитическое событие {} успешно отправлено в Kafka", eventType);
+        } catch (Exception e) {
+            log.error("Критическая ошибка отправки в Kafka (аналитика): {}", e.getMessage());
+        }
     }
 }

@@ -17,8 +17,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -30,6 +32,7 @@ public class BudgetServiceImpl implements BudgetService {
     private final BudgetMapper budgetMapper;
     private final CategoryRepository categoryRepository;
     private final TransactionRepository transactionRepository;
+
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
     @Override
@@ -52,11 +55,13 @@ public class BudgetServiceImpl implements BudgetService {
 
         Budget savedBudget = budgetRepository.save(budget);
 
+        sendAnalyticsEvent(userId, "BUDGET_CREATED", "{\"totalIncome\":" + savedBudget.getTotalIncome() + "}");
+
         AuditEventDto budgetEvent = AuditEventDto.builder()
-                .eventId(java.util.UUID.randomUUID().toString())
+                .eventId(UUID.randomUUID().toString())
                 .action("BUDGET_CONFIGURED")
                 .userId(userId)
-                .timestamp(java.time.LocalDateTime.now())
+                .timestamp(LocalDateTime.now())
                 .build();
         kafkaTemplate.send("audit-events", userId.toString(), budgetEvent);
 
@@ -143,10 +148,10 @@ public class BudgetServiceImpl implements BudgetService {
         budgetRepository.deleteByUserIdAndYearAndMonth(userId, year, month);
 
         AuditEventDto deleteEvent = AuditEventDto.builder()
-                .eventId(java.util.UUID.randomUUID().toString())
+                .eventId(UUID.randomUUID().toString())
                 .action("BUDGET_DELETED")
                 .userId(userId)
-                .timestamp(java.time.LocalDateTime.now())
+                .timestamp(LocalDateTime.now())
                 .build();
         kafkaTemplate.send("audit-events", userId.toString(), deleteEvent);
     }
@@ -193,6 +198,24 @@ public class BudgetServiceImpl implements BudgetService {
         if (ids.isEmpty()) return;
         if (categoryRepository.findByIdIn(ids.stream().toList()).size() != ids.size()) {
             throw new IllegalArgumentException("Одна или несколько категорий не найдены.");
+        }
+    }
+
+    private void sendAnalyticsEvent(Long userId, String eventType, String payload) {
+        try {
+            AnalyticsEventDto event = AnalyticsEventDto.builder()
+                    .eventId(UUID.randomUUID().toString())
+                    .eventType(eventType)
+                    .userId(userId)
+                    .timestamp(LocalDateTime.now())
+                    .platform("UNKNOWN")
+                    .payload(payload)
+                    .build();
+
+            kafkaTemplate.send("analytics-events", userId.toString(), event);
+            log.info("Аналитическое событие {} успешно отправлено для пользователя {}", eventType, userId);
+        } catch (Exception e) {
+            log.error("Ошибка при отправке аналитики в Kafka: {}", e.getMessage());
         }
     }
 }

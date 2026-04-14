@@ -1,5 +1,6 @@
 package com.teamfourpixels.service;
 
+import com.teamfourpixels.dto.AnalyticsEventDto;
 import com.teamfourpixels.dto.CategoryDto;
 import com.teamfourpixels.dto.CreateCategoryRequest;
 import com.teamfourpixels.entity.Category;
@@ -7,18 +8,27 @@ import com.teamfourpixels.mapper.CategoryMapper;
 import com.teamfourpixels.repository.CategoryRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class CategoryServiceImpl implements CategoryService {
 
     private final CategoryRepository categoryRepository;
     private final CategoryMapper categoryMapper;
+
+    private final KafkaTemplate<String, Object> analyticsKafkaTemplate;
+    private static final String ANALYTICS_TOPIC = "analytics-events";
 
     @Override
     @Transactional
@@ -34,7 +44,12 @@ public class CategoryServiceImpl implements CategoryService {
                 .name(request.getName())
                 .isSystem(false)
                 .build();
-        return categoryMapper.toDto(categoryRepository.save(category));
+
+        Category savedCategory = categoryRepository.save(category);
+
+        sendAnalyticsEvent(userId, "CATEGORY_CREATED", "{\"categoryName\":\"" + savedCategory.getName() + "\"}");
+
+        return categoryMapper.toDto(savedCategory);
     }
 
     @Override
@@ -77,5 +92,23 @@ public class CategoryServiceImpl implements CategoryService {
         return categoryRepository.findById(categoryId)
                 .map(categoryMapper::toDto)
                 .orElseThrow(() -> new EntityNotFoundException("Категория не найдена с таким id: " + categoryId));
+    }
+
+    private void sendAnalyticsEvent(Long userId, String eventType, String payload) {
+        try {
+            AnalyticsEventDto event = AnalyticsEventDto.builder()
+                    .eventId(UUID.randomUUID().toString())
+                    .eventType(eventType)
+                    .userId(userId)
+                    .timestamp(LocalDateTime.now())
+                    .platform("UNKNOWN")
+                    .payload(payload)
+                    .build();
+
+            analyticsKafkaTemplate.send(ANALYTICS_TOPIC, userId.toString(), event);
+            log.info("Аналитическое событие {} успешно отправлено для пользователя {}", eventType, userId);
+        } catch (Exception e) {
+            log.error("Ошибка при отправке аналитики в Kafka: {}", e.getMessage());
+        }
     }
 }

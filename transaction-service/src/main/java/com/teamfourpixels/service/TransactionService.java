@@ -29,7 +29,9 @@ import java.time.ZoneId;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
@@ -42,11 +44,13 @@ public class TransactionService {
     private final CategoryQueryService categoryQueryService;
     private final List<ClassificationStrategy> classificationStrategies;
 
-    private final KafkaTemplate<String, TransactionCreatedEvent> kafkaTemplate;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
 
     private final OutboxEventRepository outboxEventRepository;
     private final ObjectMapper objectMapper;
+    private final TransactionMetricsService metricsService;
 
+    private static final String ANALYTICS_TOPIC = "analytics-events";
     private static final Long UNCATEGORIZED_ID = 999L;
     private static final Long SPLIT_CATEGORY_ID = -1L;
 
@@ -81,6 +85,11 @@ public class TransactionService {
         }
 
         saveAuditToOutbox(saved, "TRANSACTION_CREATED", null);
+        metricsService.manualTransactionCounter.increment();
+
+        sendAnalyticsEvent(userId, "TRANSACTION_ADDED",
+                String.format("{\"amount\":%s, \"type\":\"%s\", \"source\":\"manual\", \"categoryId\":%d}",
+                        saved.getAmount(), saved.getType(), saved.getCategoryId()));
 
         return mapper.toDto(saved);
     }
@@ -88,12 +97,14 @@ public class TransactionService {
     @Async
     @Transactional
     public CompletableFuture<Integer> importAndClassifyTransactions(Long userId, int year, int month) {
+        long startTime = System.currentTimeMillis();
+
         try {
             log.info("Начинаем импорт транзакций для пользователя {} за {}/{}", userId, month, year);
             List<TransactionDto> bankTransactions = bankServiceClient.fetchTransactions(year, month);
 
             if (bankTransactions == null || bankTransactions.isEmpty()) {
-                log.warn("Банк-сервис вернул пустой список транзакций!");
+                metricsService.bankSyncTimer.record(System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
                 return CompletableFuture.completedFuture(0);
             }
 
@@ -109,30 +120,74 @@ public class TransactionService {
                     continue;
                 }
 
+                metricsService.autoImportedTransactionCounter.increment();
+
                 Transaction transaction = convertBankDtoToTransaction(userId, bankDto, uniqueRefId);
                 Long categoryId = autoClassify(transaction, sortedStrategies);
                 transaction.setCategoryId(categoryId);
 
+                if (UNCATEGORIZED_ID.equals(categoryId)) {
+                    metricsService.autoClassificationFailedCounter.increment();
+                } else {
+                    metricsService.autoClassificationSuccessCounter.increment();
+                }
+
                 Transaction saved = repository.save(transaction);
 
+                sendAnalyticsEvent(userId, "TRANSACTION_ADDED",
+                        String.format("{\"amount\":%s, \"type\":\"%s\", \"source\":\"auto\", \"categoryId\":%d}",
+                                saved.getAmount(), saved.getType(), saved.getCategoryId()));
+
                 if (saved.getType() == OperationType.EXPENSE) {
-                    try {
-                        sendTransactionEvent(saved);
-                    } catch (Exception e) {
-                        log.error("Ошибка отправки в Kafka для транзакции {}: {}", saved.getId(), e.getMessage());
-                    }
+                    sendTransactionEvent(saved);
                 }
 
                 saveAuditToOutbox(saved, "TRANSACTION_IMPORTED", null);
                 newCount++;
             }
 
-            log.info("Успешно импортировано {} новых транзакций", newCount);
+            metricsService.bankSyncTimer.record(System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
             return CompletableFuture.completedFuture(newCount);
 
         } catch (Exception e) {
-            log.error("КРИТИЧЕСКАЯ ОШИБКА при импорте транзакций для пользователя {}: {}", userId, e.getMessage(), e);
+            metricsService.bankSyncTimer.record(System.currentTimeMillis() - startTime, TimeUnit.MILLISECONDS);
+            log.error("КРИТИЧЕСКАЯ ОШИБКА импорта: {}", e.getMessage());
             return CompletableFuture.failedFuture(e);
+        }
+    }
+
+    private void sendTransactionEvent(Transaction transaction) {
+        try {
+            TransactionCreatedEvent event = TransactionCreatedEvent.builder()
+                    .transactionId(transaction.getId())
+                    .userId(transaction.getUserId())
+                    .categoryId(transaction.getCategoryId())
+                    .amount(transaction.getAmount())
+                    .description(transaction.getDescription())
+                    .timestamp(LocalDateTime.ofInstant(transaction.getTransactionTime(), ZoneId.systemDefault()))
+                    .build();
+
+            kafkaTemplate.send("transaction-events", transaction.getUserId().toString(), event);
+        } catch (Exception e) {
+            log.error("Failed to send Kafka event for transaction {}: {}", transaction.getId(), e.getMessage());
+        }
+    }
+
+    private void sendAnalyticsEvent(Long userId, String eventType, String payload) {
+        try {
+            AnalyticsEventDto event = AnalyticsEventDto.builder()
+                    .eventId(UUID.randomUUID().toString())
+                    .eventType(eventType)
+                    .userId(userId)
+                    .timestamp(LocalDateTime.now())
+                    .platform("UNKNOWN")
+                    .payload(payload)
+                    .build();
+
+            kafkaTemplate.send(ANALYTICS_TOPIC, userId.toString(), event);
+            log.info("Analytics event {} sent for user {}", eventType, userId);
+        } catch (Exception e) {
+            log.error("Ошибка отправки аналитики транзакций: {}", e.getMessage());
         }
     }
 
@@ -187,6 +242,13 @@ public class TransactionService {
         }
 
         if (!categoryId.equals(oldCategoryId)) {
+            if (t.getBankTransactionRefId() != null) {
+                log.info("Пользователь {} исправляет автоклассификацию для транзакции {}", userId, id);
+                sendAnalyticsEvent(userId, "AUTO_CATEGORY_CORRECTED",
+                        String.format("{\"transactionId\":%d, \"oldCat\":%d, \"newCat\":%d}",
+                                t.getId(), oldCategoryId, categoryId));
+            }
+
             t.setCategoryId(categoryId);
             t = repository.save(t);
 
@@ -194,24 +256,6 @@ public class TransactionService {
         }
 
         return mapper.toDto(t);
-    }
-
-    private void sendTransactionEvent(Transaction transaction) {
-        try {
-            TransactionCreatedEvent event = TransactionCreatedEvent.builder()
-                    .transactionId(transaction.getId())
-                    .userId(transaction.getUserId())
-                    .categoryId(transaction.getCategoryId())
-                    .amount(transaction.getAmount())
-                    .description(transaction.getDescription())
-                    .timestamp(LocalDateTime.ofInstant(transaction.getTransactionTime(), ZoneId.systemDefault()))
-                    .build();
-
-            kafkaTemplate.send("transaction-events", transaction.getUserId().toString(), event);
-            log.info("Sent transaction event to Kafka for transaction: {}", transaction.getId());
-        } catch (Exception e) {
-            log.error("Failed to send Kafka event for transaction {}: {}", transaction.getId(), e.getMessage());
-        }
     }
 
     @Transactional(readOnly = true)
