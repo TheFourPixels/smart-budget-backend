@@ -351,6 +351,27 @@ services:
       - default
     restart: always
 
+  swagger-ui:
+    image: swaggerapi/swagger-ui
+    container_name: smart-budget-docs
+    ports:
+      - "8001:8080"
+    environment:
+      URLS: "[ 
+          { url: 'http://localhost:${GATEWAY_PORT}/auth-docs/v3/api-docs', name: '1. Auth' },
+          { url: 'http://localhost:${GATEWAY_PORT}/budget-docs/v3/api-docs', name: '2. Budget' },
+          { url: 'http://localhost:${GATEWAY_PORT}/transaction-docs/v3/api-docs', name: '3. Transaction' },
+          { url: 'http://localhost:${GATEWAY_PORT}/goal-docs/v3/api-docs', name: '4. Goal' },
+          { url: 'http://localhost:${GATEWAY_PORT}/dashboard-docs/v3/api-docs', name: '5. Dashboard' },
+          { url: 'http://localhost:${GATEWAY_PORT}/bank-docs/v3/api-docs', name: '6. Bank' },
+          { url: 'http://localhost:${GATEWAY_PORT}/notification-docs/v3/api-docs', name: '7. Notification' },
+          { url: 'http://localhost:${GATEWAY_PORT}/audit-docs/v3/api-docs', name: '8. Audit' }
+        ]"
+    networks:
+      - default
+    depends_on:
+      - gateway-service
+
   metabase:
     image: metabase/metabase:latest
     container_name: metabase
