@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
@@ -104,6 +105,26 @@ public abstract class TransactionMapper {
                 .oldCategoryId(oldCategoryId)
                 .newCategoryId(transaction.getCategoryId())
                 .timestamp(LocalDateTime.now())
+                .build();
+    }
+
+    public TransactionSplit toSplitEntity(SplitTransactionRequest.SplitPartRequest req, Transaction transaction) {
+        return TransactionSplit.builder()
+                .transaction(transaction)
+                .categoryId(req.getCategoryId())
+                .amount(req.getAmount())
+                .description(req.getDescription())
+                .build();
+    }
+
+    public TransactionCreatedEvent toKafkaEvent(Transaction transaction) {
+        return TransactionCreatedEvent.builder()
+                .transactionId(transaction.getId())
+                .userId(transaction.getUserId())
+                .categoryId(transaction.getCategoryId())
+                .amount(transaction.getAmount())
+                .description(transaction.getDescription())
+                .timestamp(LocalDateTime.ofInstant(transaction.getTransactionTime(), ZoneId.systemDefault()))
                 .build();
     }
 }

@@ -7,6 +7,7 @@ import com.teamfourpixels.mapper.GoalMapper;
 import com.teamfourpixels.repository.GoalRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -23,13 +24,15 @@ import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class GoalService {
     private final GoalRepository repository;
     private final GoalMapper mapper;
-
     private final WebClient budgetClient;
+
+    private final AnalyticsService analyticsService;
 
     private static final String USER_ID_HEADER = "X-User-Id";
 
@@ -105,6 +108,9 @@ public class GoalService {
         goal.setUserId(userId);
         Goal savedGoal = repository.save(goal);
 
+        analyticsService.sendEvent(userId, "GOAL_CREATED",
+                String.format("{\"goalId\":%d, \"targetAmount\":%s}", savedGoal.getId(), savedGoal.getTargetAmount()));
+
         return addCalculatedFields(savedGoal);
     }
 
@@ -142,11 +148,21 @@ public class GoalService {
     public GoalDto contribute(Long userId, Long id, BigDecimal amount) {
         Goal goal = getByIdAndUser(id, userId);
 
-        goal.setSavedAmount(goal.getSavedAmount().add(amount));
-        if (goal.getSavedAmount().compareTo(goal.getTargetAmount()) > 0) {
-            goal.setSavedAmount(goal.getTargetAmount());
+        BigDecimal amountBefore = goal.getSavedAmount();
+        BigDecimal target = goal.getTargetAmount();
+
+        goal.setSavedAmount(amountBefore.add(amount));
+        if (goal.getSavedAmount().compareTo(target) > 0) {
+            goal.setSavedAmount(target);
         }
+
         Goal savedGoal = repository.save(goal);
+
+        if (amountBefore.compareTo(target) < 0 && savedGoal.getSavedAmount().compareTo(target) >= 0) {
+            analyticsService.sendEvent(userId, "GOAL_ACHIEVED", "{\"goalId\":" + id + "}");
+            log.info("Пользователь {} достиг финансовой цели {}", userId, id);
+        }
+
         return addCalculatedFields(savedGoal);
     }
 

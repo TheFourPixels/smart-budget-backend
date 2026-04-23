@@ -9,7 +9,9 @@ spring:
       globalcors:
         cors-configurations:
           '[/**]':
-            allowedOriginPatterns: "*"
+            allowedOriginPatterns:
+              - "http://localhost:8001"
+              - "http://localhost:8080"
             allowedMethods:
               - GET
               - POST
@@ -60,7 +62,87 @@ spring:
           predicates:
             - Path=/api/v1/audit/**
 
+        - id: auth-docs
+          uri: ${AUTH_SERVICE_URL}
+          predicates:
+            - Path=/auth-docs/v3/api-docs/**
+          filters:
+            - RewritePath=/auth-docs/(?<path>.*), /$\{path}
+
+        - id: budget-docs
+          uri: ${BUDGET_SERVICE_URL}
+          predicates:
+            - Path=/budget-docs/v3/api-docs/**
+          filters:
+            - RewritePath=/budget-docs/(?<path>.*), /$\{path}
+
+        - id: transaction-docs
+          uri: ${TRANSACTION_SERVICE_URL}
+          predicates:
+            - Path=/transaction-docs/v3/api-docs/**
+          filters:
+            - RewritePath=/transaction-docs/(?<path>.*), /$\{path}
+
+        - id: goal-docs
+          uri: ${GOAL_SERVICE_URL}
+          predicates:
+            - Path=/goal-docs/v3/api-docs/**
+          filters:
+            - RewritePath=/goal-docs/(?<path>.*), /$\{path}
+
+        - id: dashboard-docs
+          uri: ${DASHBOARD_SERVICE_URL}
+          predicates:
+            - Path=/dashboard-docs/v3/api-docs/**
+          filters:
+            - RewritePath=/dashboard-docs/(?<path>.*), /$\{path}
+
+        - id: bank-docs
+          uri: ${BANK_SERVICE_URL}
+          predicates:
+            - Path=/bank-docs/v3/api-docs/**
+          filters:
+            - RewritePath=/bank-docs/(?<path>.*), /$\{path}
+
+        - id: notification-docs
+          uri: ${NOTIFICATION_SERVICE_URL}
+          predicates:
+            - Path=/notification-docs/v3/api-docs/**
+          filters:
+            - RewritePath=/notification-docs/(?<path>.*), /$\{path}
+
+        - id: audit-docs
+          uri: ${AUDIT_SERVICE_URL}
+          predicates:
+            - Path=/audit-docs/v3/api-docs/**
+          filters:
+            - RewritePath=/audit-docs/(?<path>.*), /$\{path}
+
+
   servlet:
     multipart:
       max-file-size: 5MB
       max-request-size: 5MB
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    urls:
+      - name: 1. Auth (Пользователи и профили)
+        url: /auth-docs/v3/api-docs
+      - name: 2. Budget (Бюджеты и категории)
+        url: /budget-docs/v3/api-docs
+      - name: 3. Transactions (Операции и правила)
+        url: /transaction-docs/v3/api-docs
+      - name: 4. Goals (Цели)
+        url: /goal-docs/v3/api-docs
+      - name: 5. Dashboard (Аналитика)
+        url: /dashboard-docs/v3/api-docs
+      - name: 6. Bank (Имитация банка)
+        url: /bank-docs/v3/api-docs
+      - name: 7. Notifications (Уведомления)
+        url: /notification-docs/v3/api-docs
+      - name: 8. Audit (Логи событий)
+        url: /audit-docs/v3/api-docs
