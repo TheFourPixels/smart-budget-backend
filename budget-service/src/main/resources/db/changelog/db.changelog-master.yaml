@@ -9,3 +9,5 @@ databaseChangeLog:
       file: db/changelog/changes/04-insert-initial-categories.sql
   - include:
       file: db/changelog/changes/05-add-limit-tracking.sql
+  - include:
+      file: db/changelog/changes/06-fix-category-unique-constraint.sql
