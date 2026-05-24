@@ -1,4 +1,4 @@
-CREATE TABLE outbox_events (
+CREATE TABLE transaction_outbox_events (
     id VARCHAR(36) PRIMARY KEY,
     aggregate_id VARCHAR(255) NOT NULL,
     event_type VARCHAR(255) NOT NULL,
@@ -7,4 +7,4 @@ CREATE TABLE outbox_events (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_outbox_status ON outbox_events(status);
+CREATE INDEX idx_transaction_outbox_status ON transaction_outbox_events(status);
