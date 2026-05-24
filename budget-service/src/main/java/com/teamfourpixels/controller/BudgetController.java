@@ -23,7 +23,7 @@ public class BudgetController {
 
     @PostMapping
     public BudgetDto createOrUpdateBudget(@Valid @RequestBody CreateBudgetRequest request) {
-        log.debug("Creating budget for user {}, {}/{}", UserContext.getUserId(), request.getYear(), request.getMonth());
+        log.debug("Создание бюджета для пользователя {}, {}/{}", UserContext.getUserId(), request.getYear(), request.getMonth());
 
         return budgetService.createOrUpdateBudget(
                 UserContext.getUserId(),

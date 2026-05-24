@@ -1,8 +1,6 @@
 package com.teamfourpixels.service;
 
-import com.teamfourpixels.dto.AnalyticsEventDto;
-import com.teamfourpixels.dto.CategoryDto;
-import com.teamfourpixels.dto.CreateCategoryRequest;
+import com.teamfourpixels.dto.*;
 import com.teamfourpixels.entity.Category;
 import com.teamfourpixels.mapper.CategoryMapper;
 import com.teamfourpixels.repository.CategoryRepository;
@@ -12,12 +10,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDateTime;
-import java.util.UUID;
 
 @Slf4j
 @Service
@@ -26,9 +20,7 @@ public class CategoryServiceImpl implements CategoryService {
 
     private final CategoryRepository categoryRepository;
     private final CategoryMapper categoryMapper;
-
-    private final KafkaTemplate<String, Object> analyticsKafkaTemplate;
-    private static final String ANALYTICS_TOPIC = "analytics-events";
+    private final AnalyticsService analyticsService;
 
     @Override
     @Transactional
@@ -47,7 +39,8 @@ public class CategoryServiceImpl implements CategoryService {
 
         Category savedCategory = categoryRepository.save(category);
 
-        sendAnalyticsEvent(userId, "CATEGORY_CREATED", "{\"categoryName\":\"" + savedCategory.getName() + "\"}");
+        analyticsService.sendEvent(userId, "CATEGORY_CREATED", 
+                CategoryAnalyticsPayload.builder().categoryName(savedCategory.getName()).build());
 
         return categoryMapper.toDto(savedCategory);
     }
@@ -83,6 +76,15 @@ public class CategoryServiceImpl implements CategoryService {
         if (!userId.equals(category.getUserId()) || category.isSystem()) {
             throw new IllegalArgumentException("Нельзя удалять системные или чужие категории");
         }
+
+        CategoryDeletedEvent event = CategoryDeletedEvent.builder()
+                .categoryId(id)
+                .userId(userId)
+                .build();
+        
+        analyticsService.sendEvent(userId, "CATEGORY_DELETED", event);
+        log.info("Событие удаления категории {} отправлено в Kafka для пользователя {}", id, userId);
+
         categoryRepository.deleteById(id);
     }
 
@@ -92,23 +94,5 @@ public class CategoryServiceImpl implements CategoryService {
         return categoryRepository.findById(categoryId)
                 .map(categoryMapper::toDto)
                 .orElseThrow(() -> new EntityNotFoundException("Категория не найдена с таким id: " + categoryId));
-    }
-
-    private void sendAnalyticsEvent(Long userId, String eventType, String payload) {
-        try {
-            AnalyticsEventDto event = AnalyticsEventDto.builder()
-                    .eventId(UUID.randomUUID().toString())
-                    .eventType(eventType)
-                    .userId(userId)
-                    .timestamp(LocalDateTime.now())
-                    .platform("UNKNOWN")
-                    .payload(payload)
-                    .build();
-
-            analyticsKafkaTemplate.send(ANALYTICS_TOPIC, userId.toString(), event);
-            log.info("Аналитическое событие {} успешно отправлено для пользователя {}", eventType, userId);
-        } catch (Exception e) {
-            log.error("Ошибка при отправке аналитики в Kafka: {}", e.getMessage());
-        }
     }
 }

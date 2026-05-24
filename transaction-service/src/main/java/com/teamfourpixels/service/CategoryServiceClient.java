@@ -2,7 +2,7 @@ package com.teamfourpixels.service;
 
 import com.teamfourpixels.dto.CategoryDto;
 import jakarta.persistence.EntityNotFoundException;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -10,10 +10,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
 @Service
-@RequiredArgsConstructor
 public class CategoryServiceClient implements CategoryQueryService {
 
     private final WebClient budgetWebClient;
+
+    public CategoryServiceClient(@Qualifier("budgetWebClient") WebClient budgetWebClient) {
+        this.budgetWebClient = budgetWebClient;
+    }
 
     @Override
     public CategoryDto getCategoryById(Long categoryId) {
@@ -25,13 +28,12 @@ public class CategoryServiceClient implements CategoryQueryService {
         try {
             jwt = (String) SecurityContextHolder.getContext().getAuthentication().getCredentials();
         } catch (Exception e) {
-            //если вызываем из async без контекста можно логировать или обрабатывать
         }
 
         try {
             return budgetWebClient.get()
                     .uri("/api/v1/categories", categoryId)
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwt) // <---
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwt)
                     .retrieve()
                     .onStatus(status -> status == HttpStatus.NOT_FOUND, response -> {
                         throw new EntityNotFoundException("Категория не найдена с ID: " + categoryId);

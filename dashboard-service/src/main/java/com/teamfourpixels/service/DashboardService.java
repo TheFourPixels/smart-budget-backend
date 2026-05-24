@@ -3,7 +3,9 @@ package com.teamfourpixels.service;
 import com.teamfourpixels.dto.*;
 import com.teamfourpixels.enums.LimitType;
 import com.teamfourpixels.enums.OperationType;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -16,6 +18,7 @@ import java.time.*;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class DashboardService {
@@ -35,7 +38,17 @@ public class DashboardService {
         String jwt = (String) SecurityContextHolder.getContext().getAuthentication().getCredentials();
         String authHeader = "Bearer " + jwt;
 
-        BudgetDto budget = budgetClient.get()
+        BudgetDto budget = fetchBudget(userid, authHeader, year, month);
+        List<TransactionDto> transactions = fetchTransactions(userid, authHeader, start, end);
+        List<GoalDto> goals = fetchGoals(userid, authHeader, year, month);
+        Map<Long, String> categoryNames = fetchCategoryNames(userid, authHeader);
+
+        return buildResponse(userid, authHeader, year, month, budget, transactions, goals, categoryNames);
+    }
+
+    @CircuitBreaker(name = "budgetService", fallbackMethod = "getBudgetFallback")
+    public BudgetDto fetchBudget(long userid, String authHeader, int year, int month) {
+        return budgetClient.get()
                 .uri("/api/v1/budgets/{year}/{month}", year, month)
                 .header(USER_ID_HEADER, String.valueOf(userid))
                 .header(HttpHeaders.AUTHORIZATION, authHeader)
@@ -43,47 +56,95 @@ public class DashboardService {
                 .onStatus(org.springframework.http.HttpStatusCode::is4xxClientError,
                         resp -> resp.statusCode().value() == 404
                                 ? Mono.empty()
-                                : Mono.error(new RuntimeException("Budget service error")))
+                                : Mono.error(new RuntimeException("Ошибка сервиса бюджетов")))
                 .bodyToMono(BudgetDto.class)
                 .blockOptional()
                 .orElse(new BudgetDto());
+    }
 
-        List<TransactionDto> transactions = transactionClient.get()
+    private BudgetDto getBudgetFallback(long userid, String authHeader, int year, int month, Throwable t) {
+        log.error("Сервис бюджетов недоступен для пользователя {}! Возвращаем пустой бюджет. Ошибка: {}", userid, t.getMessage());
+        return new BudgetDto();
+    }
+
+    @CircuitBreaker(name = "transactionService", fallbackMethod = "getTransactionsFallback")
+    public List<TransactionDto> fetchTransactions(long userid, String authHeader, Instant start, Instant end) {
+        return transactionClient.get()
                 .uri(uri -> uri.path("/api/v1/transactions")
                         .queryParam("page", 0)
                         .queryParam("size", 1000)
                         .queryParam("startDateMillis", start.toEpochMilli())
                         .queryParam("endDateMillis", end.toEpochMilli())
                         .build())
-
                 .header(USER_ID_HEADER, String.valueOf(userid))
                 .header(HttpHeaders.AUTHORIZATION, authHeader)
                 .retrieve()
                 .bodyToFlux(TransactionDto.class)
                 .collectList()
                 .block();
+    }
 
-        List<GoalDto> goals = goalClient.get()
+    private List<TransactionDto> getTransactionsFallback(long userid, String authHeader, Instant start, Instant end, Throwable t) {
+        log.error("Сервис транзакций недоступен для пользователя {}! Ошибка: {}", userid, t.getMessage());
+        return Collections.emptyList();
+    }
+
+    @CircuitBreaker(name = "goalService", fallbackMethod = "getGoalsFallback")
+    public List<GoalDto> fetchGoals(long userid, String authHeader, int year, int month) {
+        return goalClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .path("/api/v1/goals/active")
                         .queryParam("year", year)
                         .queryParam("month", month)
                         .build())
-
                 .header(USER_ID_HEADER, String.valueOf(userid))
                 .header(HttpHeaders.AUTHORIZATION, authHeader)
                 .retrieve()
                 .bodyToFlux(GoalDto.class)
                 .collectList()
                 .block();
-
-        return buildResponse(year, month, budget, transactions != null ? transactions : Collections.emptyList(), goals);
     }
 
-    private DashboardResponse buildResponse(int year, int month,
+    private List<GoalDto> getGoalsFallback(long userid, String authHeader, int year, int month, Throwable t) {
+        log.error("Сервис целей недоступен для пользователя {}! Ошибка: {}", userid, t.getMessage());
+        return Collections.emptyList();
+    }
+
+    @CircuitBreaker(name = "budgetService", fallbackMethod = "getCategoryNamesFallback")
+    public Map<Long, String> fetchCategoryNames(long userid, String authHeader) {
+        Map response = budgetClient.get()
+                .uri(uri -> uri.path("/api/v1/categories")
+                        .queryParam("page", 0)
+                        .queryParam("size", 1000)
+                        .build())
+                .header(USER_ID_HEADER, String.valueOf(userid))
+                .header(HttpHeaders.AUTHORIZATION, authHeader)
+                .retrieve()
+                .bodyToMono(Map.class)
+                .block();
+
+        Map<Long, String> result = new HashMap<>();
+        if (response != null && response.containsKey("content")) {
+            List<Map<String, Object>> content = (List<Map<String, Object>>) response.get("content");
+            for (Map<String, Object> cat : content) {
+                Number id = (Number) cat.get("id");
+                String name = (String) cat.get("name");
+                if (id != null && name != null) result.put(id.longValue(), name);
+            }
+        }
+        return result;
+    }
+
+    private Map<Long, String> getCategoryNamesFallback(long userid, String authHeader, Throwable t) {
+        log.error("Не удалось загрузить имена категорий для пользователя {}! Ошибка: {}", userid, t.getMessage());
+        return Collections.emptyMap();
+    }
+
+    private DashboardResponse buildResponse(long userid, String authHeader, int year, int month,
                                             BudgetDto budget,
                                             List<TransactionDto> transactions,
-                                            List<GoalDto> goals) {
+                                            List<GoalDto> goals,
+                                            Map<Long, String> categoryNames) {
 
         DashboardResponse resp = new DashboardResponse();
         resp.setYear(year);
@@ -99,7 +160,7 @@ public class DashboardService {
         resp.setTotalSpent(totalSpent);
         resp.setRemainingBudget(totalIncome.subtract(totalSpent));
 
-        resp.setCategoryStats(calculateCategoryStats(budget, transactions));
+        resp.setCategoryStats(calculateCategoryStats(budget, transactions, categoryNames));
         resp.setRecentTransactions(getRecentTransactions(transactions));
 
         resp.setActiveGoals(goals != null ? goals.stream()
@@ -110,7 +171,7 @@ public class DashboardService {
         return resp;
     }
 
-    private List<CategoryStatDto> calculateCategoryStats(BudgetDto budget, List<TransactionDto> txs) {
+    private List<CategoryStatDto> calculateCategoryStats(BudgetDto budget, List<TransactionDto> txs, Map<Long, String> categoryNames) {
         Map<Long, BigDecimal> spentByCategory = new HashMap<>();
 
         for (TransactionDto t : txs) {
@@ -143,7 +204,7 @@ public class DashboardService {
                 .map(limit -> {
                     CategoryStatDto stat = new CategoryStatDto();
                     stat.setCategoryId(limit.getCategoryId());
-                    stat.setCategoryName(getCategoryName(limit.getCategoryId()));
+                    stat.setCategoryName(getCategoryName(limit.getCategoryId(), categoryNames));
 
                     BigDecimal limitValue = calculateLimitValue(limit, budget.getTotalIncome());
                     BigDecimal spent = spentByCategory.getOrDefault(limit.getCategoryId(), BigDecimal.ZERO);
@@ -217,13 +278,7 @@ public class DashboardService {
         return s;
     }
 
-    private String getCategoryName(Long id) {
-        return switch (id.intValue()) {
-            case 1 -> "Продукты";
-            case 2 -> "Связь/Интернет";
-            case 3 -> "Одежда";
-            case 10 -> "Рестораны";
-            default -> "Другое";
-        };
+    private String getCategoryName(Long id, Map<Long, String> categoryNames) {
+        return categoryNames.getOrDefault(id, "Категория " + id);
     }
 }

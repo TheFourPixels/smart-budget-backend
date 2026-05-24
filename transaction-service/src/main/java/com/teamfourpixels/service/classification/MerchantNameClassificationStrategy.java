@@ -7,7 +7,9 @@ import org.springframework.stereotype.Component;
 import java.util.Optional;
 
 @Component
+@lombok.RequiredArgsConstructor
 public class MerchantNameClassificationStrategy implements ClassificationStrategy {
+    private final com.teamfourpixels.service.StrategyPriorityService strategyPriorityService;
 
     private static final Long SALARY_CATEGORY_ID = 1L;
 
@@ -25,7 +27,5 @@ public class MerchantNameClassificationStrategy implements ClassificationStrateg
     }
 
     @Override
-    public int getPriority() {
-        return 2;
-    }
+    public int getPriority(Long userId) { return strategyPriorityService.getPriority(userId, this.getClass().getSimpleName(), 2); }
 }

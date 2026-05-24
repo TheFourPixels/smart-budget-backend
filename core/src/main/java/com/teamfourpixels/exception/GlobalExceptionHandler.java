@@ -21,14 +21,14 @@ import java.util.stream.Collectors;
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<ErrorResponse> handleValidationException(IllegalArgumentException ex) {
-        ErrorResponse error = new ErrorResponse(400, ex.getMessage());
+    public ResponseEntity<ErrorResponse> handleIllegalArgumentException(IllegalArgumentException ex) {
+        ErrorResponse error = new ErrorResponse(HttpStatus.BAD_REQUEST.value(), ex.getMessage());
         return ResponseEntity.badRequest().body(error);
     }
 
     @ExceptionHandler(EntityNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleNotFound(EntityNotFoundException ex) {
-        ErrorResponse error = new ErrorResponse(404, ex.getMessage());
+        ErrorResponse error = new ErrorResponse(HttpStatus.NOT_FOUND.value(), ex.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
     }
 
@@ -36,7 +36,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleMethodArgumentNotValid(MethodArgumentNotValidException ex) {
         String defaultMessage = ex.getBindingResult().getFieldError().getDefaultMessage();
 
-        ErrorResponse error = new ErrorResponse(400, defaultMessage);
+        ErrorResponse error = new ErrorResponse(HttpStatus.BAD_REQUEST.value(), defaultMessage);
         return ResponseEntity.badRequest().body(error);
     }
 
@@ -86,5 +86,11 @@ public class GlobalExceptionHandler {
         errors.put("message", "Ошибка валидации параметров: " + message);
 
         return errors;
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> handleGeneralException(Exception ex) {
+        ErrorResponse error = new ErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR.value(), "An unexpected error occurred");
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
     }
 }

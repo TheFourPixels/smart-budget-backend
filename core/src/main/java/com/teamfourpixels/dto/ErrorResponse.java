@@ -1,14 +1,13 @@
 package com.teamfourpixels.dto;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class ErrorResponse {
-    private int code;
+    private int status;
     private String message;
-
-    public ErrorResponse(int code, String message) {
-        this.code = code;
-        this.message = message;
-    }
 }

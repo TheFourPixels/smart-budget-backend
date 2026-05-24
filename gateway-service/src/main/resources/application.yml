@@ -26,7 +26,7 @@ spring:
         - id: auth-service
           uri: ${AUTH_SERVICE_URL}
           predicates:
-            - Path=/api/v1/auth/**, /api/v1/profile/**
+            - Path=/api/v1/auth/**, /api/v1/profile/**, /api/v1/admin/**
 
         - id: budget-service
           uri: ${BUDGET_SERVICE_URL}

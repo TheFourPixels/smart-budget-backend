@@ -7,3 +7,7 @@ databaseChangeLog:
       file: db/changelog/changes/03-create-transaction-splits-table.sql
   - include:
       file: db/changelog/changes/04-create-outbox-table.sql
+  - include:
+      file: db/changelog/changes/05-alter-categorization-rules.sql
+  - include:
+      file: db/changelog/changes/06-create-strategy-priorities-table.sql
