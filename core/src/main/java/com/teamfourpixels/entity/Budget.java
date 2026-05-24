@@ -30,6 +30,9 @@ public class Budget {
     @Column(precision = 19, scale = 4)
     private BigDecimal totalIncome;
 
+    @Column(precision = 19, scale = 4)
+    private BigDecimal spendingLimit;
+
     @OneToMany(mappedBy = "budget", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<BudgetLimit> limits = new ArrayList<>();

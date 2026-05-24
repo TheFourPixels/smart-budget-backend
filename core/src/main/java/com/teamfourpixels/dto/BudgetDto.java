@@ -10,5 +10,6 @@ public class BudgetDto {
     private Integer year;
     private Integer month;
     private BigDecimal totalIncome;
+    private BigDecimal spendingLimit;
     private List<LimitDto> limits;
 }

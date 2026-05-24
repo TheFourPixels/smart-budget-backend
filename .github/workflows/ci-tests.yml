@@ -82,7 +82,7 @@ jobs:
         run: |
           npm install -g newman
           
-          newman run postman/API-SmartBudget.json \
+          newman run postman/API-SmartBudget-v6.json \
             --env-var "authBaseUrl=http://localhost:8080/api/v1" \
             --env-var "budgetBaseUrl=http://localhost:8080/api/v1" \
             --env-var "categoryBaseUrl=http://localhost:8080/api/v1" \

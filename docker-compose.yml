@@ -16,7 +16,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
-      start_period: 10s
+      start_period: 120s
 
   minio:
     image: minio/minio
@@ -131,8 +131,8 @@ services:
       test: [ "CMD", "curl", "-f", "http://localhost:${AUTH_PORT}/actuator/health" ]
       interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 40s
+      retries: 10
+      start_period: 120s
     restart: on-failure
 
   goal-service:
@@ -148,17 +148,20 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       BUDGET_SERVICE_URL: ${BUDGET_SERVICE_URL}
       SPRING_PROFILES_ACTIVE: docker
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS}
     depends_on:
       db:
         condition: service_healthy
       auth-service:
         condition: service_healthy
+      kafka:
+        condition: service_started
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:${GOAL_PORT}/actuator/health"]
       interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 40s
+      retries: 10
+      start_period: 120s
     restart: on-failure
 
   budget-service:
@@ -186,8 +189,8 @@ services:
       test: ["CMD", "curl", "-f", "http://localhost:${BUDGET_PORT}/actuator/health"]
       interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 40s
+      retries: 10
+      start_period: 120s
     restart: on-failure
 
   transaction-service:
@@ -220,8 +223,8 @@ services:
       test: ["CMD", "curl", "-f", "http://localhost:${TRANSACTION_PORT}/actuator/health"]
       interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 40s
+      retries: 10
+      start_period: 120s
     restart: on-failure
 
   bank-service:
@@ -245,8 +248,8 @@ services:
       test: ["CMD", "curl", "-f", "http://localhost:${BANK_PORT}/actuator/health"]
       interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 40s
+      retries: 10
+      start_period: 120s
     restart: on-failure
 
   dashboard-service:
@@ -276,7 +279,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
-      start_period: 80s
+      start_period: 120s
     restart: on-failure
 
   notification-service:
@@ -299,12 +302,14 @@ services:
         condition: service_healthy
       kafka:
         condition: service_started
+      budget-service:
+        condition: service_healthy
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:${NOTIFICATION_PORT}/actuator/health" ]
       interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 40s
+      retries: 10
+      start_period: 120s
     restart: on-failure
 
   prometheus:

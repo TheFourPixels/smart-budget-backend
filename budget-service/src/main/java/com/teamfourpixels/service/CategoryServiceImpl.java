@@ -88,6 +88,15 @@ public class CategoryServiceImpl implements CategoryService {
         categoryRepository.deleteById(id);
     }
 
+
+    @Override
+    @Transactional(readOnly = true)
+    public java.util.List<CategoryDto> getCategoriesByIds(java.util.List<Long> categoryIds) {
+        return categoryRepository.findByIdIn(categoryIds).stream()
+                .map(categoryMapper::toDto)
+                .toList();
+    }
+
     @Override
     @Transactional(readOnly = true)
     public CategoryDto getCategoryById(Long categoryId) {

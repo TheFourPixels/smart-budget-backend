@@ -171,6 +171,27 @@ public class GoalService {
         return addCalculatedFields(savedGoal);
     }
 
+
+    @Transactional
+    public GoalDto completeEarly(Long userId, Long id) {
+        Goal goal = getByIdAndUser(id, userId);
+        
+        if (goal.getSavedAmount().compareTo(goal.getTargetAmount()) >= 0) {
+            return addCalculatedFields(goal);
+        }
+
+        goal.setSavedAmount(goal.getTargetAmount());
+        goal.setDeadline(LocalDate.now());
+
+        Goal savedGoal = repository.save(goal);
+
+        analyticsService.sendEvent(userId, "GOAL_COMPLETED_EARLY", 
+                String.format("{\"goalId\":%d, \"finalAmount\":%s}", id, savedGoal.getTargetAmount()));
+        
+        log.info("Пользователь досрочно завершил цель {", userId, id);
+        return addCalculatedFields(savedGoal);
+    }
+
     @Transactional
     public void delete(Long userId, Long id) {
         Goal goalToDelete = getByIdAndUser(id, userId);

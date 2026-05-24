@@ -51,6 +51,11 @@ public class GoalController {
         return service.contribute(UserContext.getUserId(), id, req.getAmount());
     }
 
+
+    @PostMapping("/{id}/complete-early")
+    public GoalDto completeEarly(@PathVariable Long id) {
+        return service.completeEarly(UserContext.getUserId(), id);
+    }
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable Long id) {

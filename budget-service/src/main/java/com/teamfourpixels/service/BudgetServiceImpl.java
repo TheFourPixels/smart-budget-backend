@@ -94,9 +94,10 @@ public class BudgetServiceImpl implements BudgetService {
 
         if (totalSpent == null) totalSpent = BigDecimal.ZERO;
 
+        BigDecimal effectiveLimit = budget.getSpendingLimit() != null ? budget.getSpendingLimit() : budget.getTotalIncome();
         BigDecimal limitValue = limit.getLimitValue();
         if (limit.getLimitType() == LimitType.PERCENT) {
-            limitValue = budget.getTotalIncome()
+            limitValue = effectiveLimit
                     .multiply(limitValue)
                     .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
         }
@@ -168,8 +169,9 @@ public class BudgetServiceImpl implements BudgetService {
                 .filter(l -> l.getLimitType() == LimitType.SUM)
                 .map(LimitDto::getLimitValue)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-        if (amountSum.compareTo(request.getTotalIncome()) > 0) {
-            throw new IllegalArgumentException("Сумма фиксированных лимитов > дохода.");
+        BigDecimal effectiveLimit = request.getSpendingLimit() != null ? request.getSpendingLimit() : request.getTotalIncome();
+        if (amountSum.compareTo(effectiveLimit) > 0) {
+            throw new IllegalArgumentException("Сумма фиксированных лимитов > лимита трат.");
         }
     }
 
@@ -184,11 +186,12 @@ public class BudgetServiceImpl implements BudgetService {
                 .map(LimitDto::getLimitValue)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        BigDecimal percentAsMoney = totalIncome.multiply(percentSum).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        BigDecimal effectiveLimit = request.getSpendingLimit() != null ? request.getSpendingLimit() : totalIncome;
+        BigDecimal percentAsMoney = effectiveLimit.multiply(percentSum).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
         BigDecimal totalAllocated = percentAsMoney.add(amountSum);
         
-        if (totalAllocated.compareTo(totalIncome) > 0) {
-            throw new IllegalArgumentException("Общая сумма лимитов превышает доход.");
+        if (totalAllocated.compareTo(effectiveLimit) > 0) {
+            throw new IllegalArgumentException("Общая сумма лимитов превышает лимит трат.");
         }
     }
 

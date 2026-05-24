@@ -413,6 +413,54 @@
       "name": "2. Budgets (Бюджеты)",
       "item": [
         {
+          "name": "Create Budget with Spending Limit (POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"year\": 2026, \"month\": 6, \"totalIncome\": 200000, \"spendingLimit\": 100000, \"limits\": []}"
+            },
+            "url": {
+              "raw": "{{budgetBaseUrl}}/budgets",
+              "host": [
+                "{{budgetBaseUrl}}"
+              ],
+              "path": [
+                "budgets"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.request.headers.add({ key: 'Authorization', value: 'Bearer ' + pm.environment.get('jwt_token') });",
+                  "pm.request.headers.add({ key: 'X-User-Id', value: pm.environment.get('user_id') });"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', function () { pm.response.to.have.status(200); });",
+                  "var jsonData = pm.response.json();",
+                  "pm.expect(jsonData.spendingLimit).to.eql(100000);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
           "name": "Create Budget (POST)",
           "event": [
             {
@@ -889,6 +937,46 @@
           }
         },
         {
+          "name": "Complete Goal Early (POST)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.request.headers.add({ key: \"Authorization\", value: \"Bearer \" + pm.environment.get(\"jwt_token\") });",
+                  "pm.request.headers.add({ key: \"X-User-Id\", value: pm.environment.get(\"user_id\") });"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "var json = pm.response.json();",
+                  "pm.expect(json.savedAmount).to.eql(json.targetAmount);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{goalBaseUrl}}/goals/{{goal_id}}/complete-early",
+              "host": [
+                "{{goalBaseUrl}}"
+              ],
+              "path": [
+                "goals",
+                "{{goal_id}}",
+                "complete-early"
+              ]
+            }
+          }
+        },
+        {
           "name": "Delete Goal (DELETE)",
           "event": [
             {
@@ -931,6 +1019,48 @@
     {
       "name": "4. Transactions (Транзакции)",
       "item": [
+        {
+          "name": "Receive Bank Webhook Signal (POST)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Import started message\", () => pm.expect(pm.response.text()).to.contain(\"Import started\"));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Bank-Token",
+                "value": "super-secret-bank-key"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"userId\": {{user_id}}, \"message\": \"TEST\"}"
+            },
+            "url": {
+              "raw": "{{transactionBaseUrl}}/webhooks/bank-signal",
+              "host": [
+                "{{transactionBaseUrl}}"
+              ],
+              "path": [
+                "webhooks",
+                "bank-signal"
+              ]
+            }
+          }
+        },
         {
           "name": "1. Sync Transactions (Import) (POST)",
           "event": [

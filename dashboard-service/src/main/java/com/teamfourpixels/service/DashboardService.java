@@ -151,14 +151,17 @@ public class DashboardService {
         resp.setMonth(month);
 
         BigDecimal totalIncome = Optional.ofNullable(budget.getTotalIncome()).orElse(BigDecimal.ZERO);
+        BigDecimal spendingLimit = budget.getSpendingLimit();
+        BigDecimal effectiveLimit = spendingLimit != null ? spendingLimit : totalIncome;
         BigDecimal totalSpent = transactions.stream()
                 .filter(t -> t.getType() == OperationType.EXPENSE)
                 .map(t -> t.getAmount().abs())
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         resp.setTotalIncome(totalIncome);
+        resp.setSpendingLimit(spendingLimit);
         resp.setTotalSpent(totalSpent);
-        resp.setRemainingBudget(totalIncome.subtract(totalSpent));
+        resp.setRemainingBudget(effectiveLimit.subtract(totalSpent));
 
         resp.setCategoryStats(calculateCategoryStats(budget, transactions, categoryNames));
         resp.setRecentTransactions(getRecentTransactions(transactions));
@@ -206,7 +209,8 @@ public class DashboardService {
                     stat.setCategoryId(limit.getCategoryId());
                     stat.setCategoryName(getCategoryName(limit.getCategoryId(), categoryNames));
 
-                    BigDecimal limitValue = calculateLimitValue(limit, budget.getTotalIncome());
+                    BigDecimal effectiveLimit = budget.getSpendingLimit() != null ? budget.getSpendingLimit() : budget.getTotalIncome();
+                    BigDecimal limitValue = calculateLimitValue(limit, effectiveLimit);
                     BigDecimal spent = spentByCategory.getOrDefault(limit.getCategoryId(), BigDecimal.ZERO);
 
                     stat.setLimit(limitValue);
@@ -227,9 +231,9 @@ public class DashboardService {
                 .toList();
     }
 
-    private BigDecimal calculateLimitValue(LimitDto limit, BigDecimal totalIncome) {
+    private BigDecimal calculateLimitValue(LimitDto limit, BigDecimal effectiveLimit) {
         return limit.getLimitType() == LimitType.PERCENT
-                ? totalIncome.multiply(limit.getLimitValue())
+                ? effectiveLimit.multiply(limit.getLimitValue())
                 .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP)
                 : limit.getLimitValue();
     }

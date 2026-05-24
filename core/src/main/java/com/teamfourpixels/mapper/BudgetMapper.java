@@ -15,6 +15,7 @@ public interface BudgetMapper {
     LimitDto toLimitDto(BudgetLimit entity);
 
     @Mapping(target = "totalIncome", source = "request.totalIncome")
+    @Mapping(target = "spendingLimit", source = "request.spendingLimit")
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "limits", ignore = true)
     void updateBudgetFields(@MappingTarget Budget budget, CreateBudgetRequest request, Long userId, Integer year, Integer month);

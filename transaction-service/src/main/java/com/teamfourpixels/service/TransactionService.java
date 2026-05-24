@@ -27,14 +27,11 @@ import java.nio.charset.StandardCharsets;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.concurrent.Executor;
-import org.springframework.beans.factory.annotation.Qualifier;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -54,7 +51,7 @@ public class TransactionService {
     private final TransactionEventPublisher eventPublisher;
 
     private static final Long UNCATEGORIZED_ID = 999L;
-        private static final Long SPLIT_CATEGORY_ID = -1L;
+    private static final Long SPLIT_CATEGORY_ID = -1L;
     private final ConcurrentHashMap<Long, ReentrantLock> importLocks = new ConcurrentHashMap<>();
 
     @Transactional
@@ -77,7 +74,9 @@ public class TransactionService {
                         .categoryId(saved.getCategoryId())
                         .build());
 
-        return mapper.toDto(saved);
+        TransactionDto dto = mapper.toDto(saved);
+        enrichWithCategories(Collections.singletonList(dto));
+        return dto;
     }
 
     @Async
@@ -97,7 +96,7 @@ public class TransactionService {
 
             int newCount = 0;
             List<ClassificationStrategy> sortedStrategies = classificationStrategies.stream()
-                    .sorted(Comparator.comparingInt((ClassificationStrategy s) -> ((ClassificationStrategy)s).getPriority(userId)))
+                    .sorted(Comparator.comparingInt((ClassificationStrategy s) -> s.getPriority(userId)))
                     .toList();
 
             for (TransactionDto bankDto : bankTransactions) {
@@ -159,7 +158,9 @@ public class TransactionService {
         repository.save(transaction);
 
         auditService.saveAuditToOutbox(transaction, "TRANSACTION_SPLIT", oldCategoryId);
-        return mapper.toDto(transaction);
+        TransactionDto dto = mapper.toDto(transaction);
+        enrichWithCategories(Collections.singletonList(dto));
+        return dto;
     }
 
     @Transactional
@@ -187,7 +188,9 @@ public class TransactionService {
             repository.save(t);
             auditService.saveAuditToOutbox(t, "CATEGORY_CHANGED", oldCategoryId);
         }
-        return mapper.toDto(t);
+        TransactionDto dto = mapper.toDto(t);
+        enrichWithCategories(Collections.singletonList(dto));
+        return dto;
     }
 
     private void validateSplitSum(Transaction t, SplitTransactionRequest req) {
@@ -234,12 +237,46 @@ public class TransactionService {
     @Transactional(readOnly = true)
     public Page<TransactionDto> getTransactionsPage(Long userId, int page, int size, Long categoryId, String query, Instant start, Instant end) {
         Specification<Transaction> spec = new TransactionFilterSpecification(userId, categoryId, query, start, end);
-        return repository.findAll(spec, PageRequest.of(page, size, Sort.by("transactionTime").descending())).map(mapper::toDto);
+        Page<Transaction> entities = repository.findAll(spec, PageRequest.of(page, size, Sort.by("transactionTime").descending()));
+
+        List<TransactionDto> dtos = entities.stream().map(mapper::toDto).toList();
+        enrichWithCategories(dtos);
+
+        return new PageImpl<>(dtos, entities.getPageable(), entities.getTotalElements());
     }
 
     @Transactional(readOnly = true)
     public TransactionDto getTransactionDetails(Long userId, Long id) {
-        return mapper.toDto(getByIdAndUser(id, userId));
+        TransactionDto dto = mapper.toDto(getByIdAndUser(id, userId));
+        enrichWithCategories(Collections.singletonList(dto));
+        return dto;
+    }
+
+    private void enrichWithCategories(List<TransactionDto> dtos) {
+        if (dtos == null || dtos.isEmpty()) return;
+
+        List<Long> catIds = dtos.stream()
+                .map(dto -> dto.getCategory() != null ? dto.getCategory().getId() : null)
+                .filter(id -> id != null && id > 0 && !id.equals(UNCATEGORIZED_ID) && !id.equals(SPLIT_CATEGORY_ID))
+                .distinct()
+                .toList();
+
+        if (catIds.isEmpty()) return;
+
+        try {
+            Map<Long, CategoryDto> catMap = categoryQueryService.getCategoriesByIds(catIds).stream()
+                    .collect(Collectors.toMap(CategoryDto::getId, c -> c, (v1, v2) -> v1));
+
+            dtos.forEach(dto -> {
+                if (dto.getCategory() != null && catMap.containsKey(dto.getCategory().getId())) {
+                    dto.setCategory(catMap.get(dto.getCategory().getId()));
+                } else if (dto.getCategory() != null && !dto.getCategory().getId().equals(UNCATEGORIZED_ID) && !dto.getCategory().getId().equals(SPLIT_CATEGORY_ID)) {
+                    dto.getCategory().setName("Категория не найдена");
+                }
+            });
+        } catch (Exception e) {
+            log.error("Ошибка при пакетной загрузке категорий: {}", e.getMessage());
+        }
     }
 
     private Transaction getByIdAndUser(Long id, Long userId) {

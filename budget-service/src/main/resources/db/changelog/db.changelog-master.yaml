@@ -11,3 +11,9 @@ databaseChangeLog:
       file: db/changelog/changes/05-add-limit-tracking.sql
   - include:
       file: db/changelog/changes/06-fix-category-unique-constraint.sql
+  - include:
+      file: db/changelog/changes/07-add-split-category.sql
+  - include:
+      file: db/changelog/changes/08-create-outbox-table.sql
+  - include:
+      file: db/changelog/changes/09-add-budget-spending-limit.sql

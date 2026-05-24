@@ -71,7 +71,8 @@ public class TransactionController {
     }
 
     @PostMapping
-    public TransactionDto create(@RequestBody CreateTransactionRequest req) {
+    @ResponseStatus(HttpStatus.CREATED)
+    public TransactionDto create(@Valid @RequestBody CreateTransactionRequest req) {
         return service.createTransaction(UserContext.getUserId(), req);
     }
 

@@ -27,8 +27,7 @@ public class CreateTransactionRequest {
     @Schema(description = "Название магазина/места", example = "Кафе 'Уют'")
     private String merchant;
 
-    @NotNull
-    @Schema(description = "ID категории", example = "3")
+    @Schema(description = "ID категории (может быть null для нераспределенных)", example = "3")
     private Long categoryId;
 
     @Schema(description = "Описание", example = "Ланч с коллегами")
