@@ -128,6 +128,7 @@ jobs:
 #            echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
 #            echo "DB_NAME=${{ secrets.DB_NAME }}" >> .env
 #            echo "DB_PORT=${{ secrets.DB_PORT }}" >> .env
+            [[ -z "${{ secrets.DB_PORT }}" ]] && sed -i "s/DB_PORT=/DB_PORT=5432/" .env || true
 #
 #            echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
 #            echo "JWT_EXPIRATION=${{ secrets.JWT_EXPIRATION }}" >> .env
@@ -135,11 +136,17 @@ jobs:
 #
 #            echo "GATEWAY_PORT=8080" >> .env
 #            echo "AUTH_PORT=${{ secrets.AUTH_PORT }}" >> .env
+            [[ -z "${{ secrets.AUTH_PORT }}" ]] && sed -i "s/AUTH_PORT=/AUTH_PORT=8089/" .env || true
 #            echo "BUDGET_PORT=${{ secrets.BUDGET_PORT }}" >> .env
+            [[ -z "${{ secrets.BUDGET_PORT }}" ]] && sed -i "s/BUDGET_PORT=/BUDGET_PORT=8081/" .env || true
 #            echo "TRANSACTION_PORT=${{ secrets.TRANSACTION_PORT }}" >> .env
+            [[ -z "${{ secrets.TRANSACTION_PORT }}" ]] && sed -i "s/TRANSACTION_PORT=/TRANSACTION_PORT=8083/" .env || true
 #            echo "BANK_PORT=${{ secrets.BANK_PORT }}" >> .env
+            [[ -z "${{ secrets.BANK_PORT }}" ]] && sed -i "s/BANK_PORT=/BANK_PORT=8085/" .env || true
 #            echo "GOAL_PORT=${{ secrets.GOAL_PORT }}" >> .env
+            [[ -z "${{ secrets.GOAL_PORT }}" ]] && sed -i "s/GOAL_PORT=/GOAL_PORT=8087/" .env || true
 #            echo "DASHBOARD_PORT=${{ secrets.DASHBOARD_PORT }}" >> .env
+            [[ -z "${{ secrets.DASHBOARD_PORT }}" ]] && sed -i "s/DASHBOARD_PORT=/DASHBOARD_PORT=8088/" .env || true
 #
 #            echo "AUDIT_PORT=${{ secrets.AUDIT_PORT }}" >> .env
 #            echo "AUDIT_SERVICE_URL=${{ secrets.AUDIT_SERVICE_URL }}" >> .env

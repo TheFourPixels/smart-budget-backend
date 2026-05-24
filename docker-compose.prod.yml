@@ -78,7 +78,7 @@ services:
       db:
         condition: service_healthy
       clickhouse:
-        condition: service_started
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:${TRANSACTION_PORT}/actuator/health"]
       interval: 10s

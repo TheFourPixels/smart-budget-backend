@@ -220,7 +220,7 @@ services:
       kafka:
         condition: service_started
       clickhouse:
-        condition: service_started
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:${TRANSACTION_PORT}/actuator/health"]
       interval: 10s
@@ -277,7 +277,7 @@ services:
       goal-service:
         condition: service_healthy
       clickhouse:
-        condition: service_started
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:${DASHBOARD_PORT}/actuator/health"]
       interval: 10s
@@ -345,6 +345,13 @@ services:
   clickhouse:
     image: clickhouse/clickhouse-server:24.3
     container_name: clickhouse
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--query", "SELECT 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
     ports:
       - "8123:8123"
       - "9002:9000"
