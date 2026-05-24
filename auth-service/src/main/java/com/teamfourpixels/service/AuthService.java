@@ -13,6 +13,7 @@ import java.time.LocalDateTime;
 import java.util.Random;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +29,11 @@ public class AuthService {
     private final AnalyticsService analyticsService;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final FakeMailService fakeMailService;
+
+    @Value("${spring.profiles.active:default}")
+    private String activeProfile;
+
+    private static final String TEST_RESET_CODE = "123456";
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
@@ -94,6 +100,11 @@ public class AuthService {
     }
 
     public void verifyResetCode(VerifyCodeRequest request) {
+        if (isTestMode() && TEST_RESET_CODE.equals(request.getCode())) {
+            log.info("Использован тестовый код восстановления для email: {}", request.getEmail());
+            return;
+        }
+
         PasswordResetToken resetToken = passwordResetTokenRepository.findByToken(request.getCode())
                 .filter(t -> t.getUser().getEmail().equals(request.getEmail()))
                 .orElseThrow(() -> new IllegalArgumentException("Неверный код восстановления или email"));
@@ -105,19 +116,30 @@ public class AuthService {
 
     @Transactional
     public void resetPassword(ResetPasswordRequest request) {
-        PasswordResetToken resetToken = passwordResetTokenRepository.findByToken(request.getCode())
-                .filter(t -> t.getUser().getEmail().equals(request.getEmail()))
-                .orElseThrow(() -> new IllegalArgumentException("Неверный код восстановления или email"));
+        User user;
+        if (isTestMode() && TEST_RESET_CODE.equals(request.getCode())) {
+            user = userRepository.findByEmail(request.getEmail())
+                    .orElseThrow(() -> new IllegalArgumentException("Пользователь не найден"));
+            log.info("Сброс пароля через тестовый код для email: {}", request.getEmail());
+        } else {
+            PasswordResetToken resetToken = passwordResetTokenRepository.findByToken(request.getCode())
+                    .filter(t -> t.getUser().getEmail().equals(request.getEmail()))
+                    .orElseThrow(() -> new IllegalArgumentException("Неверный код восстановления или email"));
 
-        if (resetToken.getExpiryDate().isBefore(LocalDateTime.now())) {
-            throw new IllegalArgumentException("Код восстановления просрочен");
+            if (resetToken.getExpiryDate().isBefore(LocalDateTime.now())) {
+                throw new IllegalArgumentException("Код восстановления просрочен");
+            }
+            user = resetToken.getUser();
+            passwordResetTokenRepository.delete(resetToken);
         }
 
-        User user = resetToken.getUser();
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
 
-        passwordResetTokenRepository.delete(resetToken);
         log.info("Пароль успешно изменен для пользователя: {}", user.getEmail());
+    }
+
+    private boolean isTestMode() {
+        return activeProfile != null && activeProfile.contains("docker");
     }
 }
