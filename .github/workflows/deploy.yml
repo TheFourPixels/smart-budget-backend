@@ -154,6 +154,9 @@ jobs:
 #            echo "BANK_SERVICE_URL=http://bank-service:${{ secrets.BANK_PORT }}" >> .env
 #            echo "DASHBOARD_SERVICE_URL=http://dashboard-service:${{ secrets.DASHBOARD_PORT }}" >> .env
 #            echo "NOTIFICATION_SERVICE_URL=http://notification-service:8086" >> .env
+            echo "SPRING_CLICKHOUSE_DATASOURCE_JDBC_URL=jdbc:clickhouse://clickhouse:8123/smartbudget_analytics" >> .env
+            echo "SPRING_CLICKHOUSE_DATASOURCE_USERNAME=${{ secrets.DB_USER }}" >> .env
+            echo "SPRING_CLICKHOUSE_DATASOURCE_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
 #            echo "AUDIT_SERVICE_URL=${{ secrets.AUDIT_SERVICE_URL }}" >> .env
 #
 #            echo "S3_URL=${{ secrets.S3_URL }}" >> .env
