@@ -30,6 +30,7 @@ public class UserProfileService {
     private final PasswordResetTokenRepository tokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final S3Client s3Client;
+    private final FakeMailService mailService;
 
     @Value("${s3.bucket}")
     private String bucketName;
@@ -82,11 +83,11 @@ public class UserProfileService {
         PasswordResetToken myToken = PasswordResetToken.builder()
                 .token(token)
                 .user(user)
-                .expiryDate(LocalDateTime.now().plusMinutes(60))
+                .expiryDate(LocalDateTime.now().plusMinutes(1))
                 .build();
         tokenRepository.save(myToken);
 
-        log.info("Инструкции по сбросу пароля отправлены на {}", email);
+        mailService.sendResetCode(email, token);
     }
 
     @Transactional

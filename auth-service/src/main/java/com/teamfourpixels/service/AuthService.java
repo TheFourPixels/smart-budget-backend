@@ -4,12 +4,16 @@ import com.teamfourpixels.dto.AuthRequest;
 import com.teamfourpixels.dto.AuthResponse;
 import com.teamfourpixels.dto.RegisterRequest;
 import com.teamfourpixels.entity.User;
-import com.teamfourpixels.mapper.AnalyticsMapper;
 import com.teamfourpixels.repository.UserRepository;
 import com.teamfourpixels.security.JwtTokenProvider;
+import com.teamfourpixels.dto.*;
+import com.teamfourpixels.entity.PasswordResetToken;
+import com.teamfourpixels.repository.PasswordResetTokenRepository;
+import java.time.LocalDateTime;
+import java.util.Random;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,11 +26,14 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
-    private final AnalyticsMapper analyticsMapper;
+    private final AnalyticsService analyticsService;
+    private final PasswordResetTokenRepository passwordResetTokenRepository;
+    private final FakeMailService fakeMailService;
 
-    private final KafkaTemplate<String, Object> analyticsKafkaTemplate;
+    @Value("${spring.profiles.active:default}")
+    private String activeProfile;
 
-    private static final String ANALYTICS_TOPIC = "analytics-events";
+    private static final String TEST_RESET_CODE = "123456";
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
@@ -42,8 +49,10 @@ public class AuthService {
 
         User savedUser = userRepository.save(user);
 
-        sendAnalyticsEvent(savedUser.getId(), "USER_REGISTERED", "{\"email\":\"" + savedUser.getEmail() + "\"}");
-        sendAnalyticsEvent(savedUser.getId(), "USER_LOGGED_IN", "{\"source\":\"registration\"}");
+        analyticsService.sendEvent(savedUser.getId(), "USER_REGISTERED", 
+                UserAnalyticsPayload.builder().email(savedUser.getEmail()).build());
+        analyticsService.sendEvent(savedUser.getId(), "USER_LOGGED_IN", 
+                UserAnalyticsPayload.builder().source("registration").build());
 
         String token = jwtTokenProvider.generateToken(savedUser.getId(), savedUser.getEmail());
         return new AuthResponse(token, savedUser.getId(), savedUser.getName());
@@ -57,7 +66,11 @@ public class AuthService {
             throw new IllegalArgumentException("Invalid email or password");
         }
 
-        sendAnalyticsEvent(user.getId(), "USER_LOGGED_IN", "{\"source\":\"manual_login\"}");
+        user.setLastLoginAt(LocalDateTime.now());
+        userRepository.save(user);
+
+        analyticsService.sendEvent(user.getId(), "USER_LOGGED_IN", 
+                UserAnalyticsPayload.builder().source("manual_login").build());
 
         String token = jwtTokenProvider.generateToken(user.getId(), user.getEmail());
         return new AuthResponse(token, user.getId(), user.getName());
@@ -67,15 +80,66 @@ public class AuthService {
         return userRepository.existsByEmail(email);
     }
 
-    private void sendAnalyticsEvent(Long userId, String eventType, String payload) {
-        try {
-            var event = analyticsMapper.toAnalyticsEventDto(userId, eventType, payload);
 
-            analyticsKafkaTemplate.send(ANALYTICS_TOPIC, userId.toString(), event);
-            log.info("Аналитическое событие {} успешно отправлено для пользователя {}", eventType, userId);
+    @Transactional
+    public void processForgotPassword(ForgotPasswordRequest request) {
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new IllegalArgumentException("Пользователь с таким email не найден"));
 
-        } catch (Exception e) {
-            log.error("Ошибка при отправке аналитики в Kafka: {}", e.getMessage());
+        String code = String.format("%06d", new Random().nextInt(1000000));
+        
+        PasswordResetToken token = passwordResetTokenRepository.findByUserEmail(user.getEmail())
+                .orElse(PasswordResetToken.builder().user(user).build());
+        
+        token.setToken(code);
+        token.setExpiryDate(LocalDateTime.now().plusMinutes(15));
+        passwordResetTokenRepository.save(token);
+
+        fakeMailService.sendResetCode(user.getEmail(), code);
+        log.info("Код восстановления пароля отправлен на email: {}", user.getEmail());
+    }
+
+    public void verifyResetCode(VerifyCodeRequest request) {
+        if (isTestMode() && TEST_RESET_CODE.equals(request.getCode())) {
+            log.info("Использован тестовый код восстановления для email: {}", request.getEmail());
+            return;
         }
+
+        PasswordResetToken resetToken = passwordResetTokenRepository.findByToken(request.getCode())
+                .filter(t -> t.getUser().getEmail().equals(request.getEmail()))
+                .orElseThrow(() -> new IllegalArgumentException("Неверный код восстановления или email"));
+
+        if (resetToken.getExpiryDate().isBefore(LocalDateTime.now())) {
+            throw new IllegalArgumentException("Код восстановления просрочен");
+        }
+    }
+
+    @Transactional
+    public void resetPassword(ResetPasswordRequest request) {
+        User user;
+        if (isTestMode() && TEST_RESET_CODE.equals(request.getCode())) {
+            user = userRepository.findByEmail(request.getEmail())
+                    .orElseThrow(() -> new IllegalArgumentException("Пользователь не найден"));
+            log.info("Сброс пароля через тестовый код для email: {}", request.getEmail());
+        } else {
+            PasswordResetToken resetToken = passwordResetTokenRepository.findByToken(request.getCode())
+                    .filter(t -> t.getUser().getEmail().equals(request.getEmail()))
+                    .orElseThrow(() -> new IllegalArgumentException("Неверный код восстановления или email"));
+
+            if (resetToken.getExpiryDate().isBefore(LocalDateTime.now())) {
+                throw new IllegalArgumentException("Код восстановления просрочен");
+            }
+            user = resetToken.getUser();
+            passwordResetTokenRepository.delete(resetToken);
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+
+        log.info("Пароль успешно изменен для пользователя: {}", user.getEmail());
+    }
+
+    private boolean isTestMode() {
+        return activeProfile != null && activeProfile.contains("docker");
     }
 }

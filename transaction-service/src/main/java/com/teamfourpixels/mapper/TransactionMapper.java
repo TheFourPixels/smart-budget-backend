@@ -5,7 +5,6 @@ import com.teamfourpixels.entity.Transaction;
 import com.teamfourpixels.entity.TransactionSplit;
 import com.teamfourpixels.repository.TransactionSplitRepository;
 import com.teamfourpixels.service.CategoryQueryService;
-import jakarta.persistence.EntityNotFoundException;
 import org.mapstruct.*;
 import com.teamfourpixels.enums.OperationType;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,9 +18,6 @@ import java.util.UUID;
 
 @Mapper(componentModel = "spring")
 public abstract class TransactionMapper {
-
-    @Autowired
-    private CategoryQueryService categoryQueryService;
 
     @Autowired
     private TransactionSplitRepository splitRepository;
@@ -89,11 +85,11 @@ public abstract class TransactionMapper {
             return CategoryDto.builder().id(SPLIT_CATEGORY_ID).name("Разделенная транзакция").isSystem(true).build();
         }
 
-        try {
-            return categoryQueryService.getCategoryById(categoryId);
-        } catch (EntityNotFoundException e) {
-            return CategoryDto.builder().id(categoryId).name("Категория не найдена").isSystem(true).build();
-        }
+        return CategoryDto.builder()
+                .id(categoryId)
+                .name("Загрузка...")
+                .isSystem(false)
+                .build();
     }
 
     public AuditEventDto toAuditEventDto(Transaction transaction, String action, Long oldCategoryId) {

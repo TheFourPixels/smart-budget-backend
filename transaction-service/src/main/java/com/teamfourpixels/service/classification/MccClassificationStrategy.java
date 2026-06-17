@@ -7,7 +7,9 @@ import java.util.Map;
 import java.util.Optional;
 
 @Component
+@lombok.RequiredArgsConstructor
 public class MccClassificationStrategy implements ClassificationStrategy {
+    private final com.teamfourpixels.service.StrategyPriorityService strategyPriorityService;
 
     private static final Map<String, Long> MCC_TO_CATEGORY = Map.ofEntries(
             Map.entry("5411", 1L), Map.entry("5331", 1L), Map.entry("5441", 1L),
@@ -26,7 +28,5 @@ public class MccClassificationStrategy implements ClassificationStrategy {
     }
 
     @Override
-    public int getPriority() {
-        return 3;
-    }
+    public int getPriority(Long userId) { return strategyPriorityService.getPriority(userId, this.getClass().getSimpleName(), 3); }
 }

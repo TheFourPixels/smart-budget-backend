@@ -8,5 +8,5 @@ public interface ClassificationStrategy {
 
     Optional<Long> classify(Transaction transaction);
 
-    int getPriority();
+    int getPriority(Long userId);
 }

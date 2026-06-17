@@ -31,6 +31,9 @@ public class CreateBudgetRequest {
     @Schema(description = "Общий доход на месяц", example = "150000.00")
     private BigDecimal totalIncome;
 
+    @Schema(description = "Лимит на траты (если меньше дохода)", example = "100000.00")
+    private BigDecimal spendingLimit;
+
     @NotNull
     @Schema(description = "Список лимитов по категориям")
     private List<LimitDto> limits;

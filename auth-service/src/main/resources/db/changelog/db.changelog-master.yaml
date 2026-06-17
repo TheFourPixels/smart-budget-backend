@@ -5,3 +5,5 @@ databaseChangeLog:
       file: db/changelog/changes/02-add-user-profile-fields.sql
   - include:
       file: db/changelog/changes/03-add-notification-settings.sql
+  - include:
+      file: db/changelog/changes/04-add-last-login-at.sql

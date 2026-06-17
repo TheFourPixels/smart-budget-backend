@@ -33,4 +33,22 @@ public class AuthController {
         boolean exists = authService.isEmailRegistered(request.getEmail());
         return new CheckEmailResponse(exists);
     }
+
+    @PostMapping("/forgot-password")
+    @Operation(summary = "Запрос кода восстановления пароля")
+    public void forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        authService.processForgotPassword(request);
+    }
+
+    @PostMapping("/verify-code")
+    @Operation(summary = "Проверка кода восстановления")
+    public void verifyCode(@Valid @RequestBody VerifyCodeRequest request) {
+        authService.verifyResetCode(request);
+    }
+
+    @PostMapping("/reset-password")
+    @Operation(summary = "Установка нового пароля")
+    public void resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        authService.resetPassword(request);
+    }
 }

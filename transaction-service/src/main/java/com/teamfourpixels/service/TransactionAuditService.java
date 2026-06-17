@@ -22,7 +22,7 @@ public class TransactionAuditService {
     private final TransactionMapper mapper;
     private final ObjectMapper objectMapper;
 
-    @Transactional(propagation = Propagation.MANDATORY) // Должно выполняться в транзакции сервиса
+    @Transactional(propagation = Propagation.MANDATORY)
     public void saveAuditToOutbox(Transaction transaction, String action, Long oldCategoryId) {
         try {
             var eventDto = mapper.toAuditEventDto(transaction, action, oldCategoryId);

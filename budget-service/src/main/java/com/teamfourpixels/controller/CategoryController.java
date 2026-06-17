@@ -42,6 +42,12 @@ public class CategoryController {
         categoryService.deleteCategory(UserContext.getUserId(), id);
     }
 
+
+    @GetMapping("/list")
+    public java.util.List<CategoryDto> getCategoriesByIds(@RequestParam java.util.List<Long> ids) {
+        return categoryService.getCategoriesByIds(ids);
+    }
+
     @GetMapping("/{id}")
     public CategoryDto getCategoryById(@PathVariable Long id) {
         return categoryService.getCategoryById(id);

@@ -1,6 +1,7 @@
 package com.teamfourpixels.service;
 
 import com.teamfourpixels.dto.*;
+import com.teamfourpixels.dto.BudgetAnalyticsPayload;
 import com.teamfourpixels.entity.*;
 import com.teamfourpixels.enums.LimitType;
 import com.teamfourpixels.enums.OperationType;
@@ -13,6 +14,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -56,8 +59,13 @@ public class BudgetServiceImpl implements BudgetService {
 
         Budget savedBudget = budgetRepository.save(budget);
 
-        analyticsService.sendEvent(userId, "BUDGET_CREATED", "{\"totalIncome\":" + savedBudget.getTotalIncome() + "}");
-        auditService.sendAuditLog(userId, "BUDGET_CONFIGURED");
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                analyticsService.sendEvent(userId, "BUDGET_CREATED", "{\"totalIncome\":" + savedBudget.getTotalIncome() + "}");
+                auditService.sendAuditLog(userId, "BUDGET_CONFIGURED");
+            }
+        });
 
         return budgetMapper.toDto(savedBudget);
     }
@@ -86,9 +94,10 @@ public class BudgetServiceImpl implements BudgetService {
 
         if (totalSpent == null) totalSpent = BigDecimal.ZERO;
 
+        BigDecimal effectiveLimit = budget.getSpendingLimit() != null ? budget.getSpendingLimit() : budget.getTotalIncome();
         BigDecimal limitValue = limit.getLimitValue();
         if (limit.getLimitType() == LimitType.PERCENT) {
-            limitValue = budget.getTotalIncome()
+            limitValue = effectiveLimit
                     .multiply(limitValue)
                     .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
         }
@@ -149,6 +158,7 @@ public class BudgetServiceImpl implements BudgetService {
                 .filter(l -> l.getLimitType() == LimitType.PERCENT)
                 .map(LimitDto::getLimitValue)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+        
         if (percentSum.compareTo(BigDecimal.valueOf(100)) > 0) {
             throw new IllegalArgumentException("Сумма процентных лимитов > 100%.");
         }
@@ -159,8 +169,9 @@ public class BudgetServiceImpl implements BudgetService {
                 .filter(l -> l.getLimitType() == LimitType.SUM)
                 .map(LimitDto::getLimitValue)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-        if (amountSum.compareTo(request.getTotalIncome()) > 0) {
-            throw new IllegalArgumentException("Сумма фиксированных лимитов > дохода.");
+        BigDecimal effectiveLimit = request.getSpendingLimit() != null ? request.getSpendingLimit() : request.getTotalIncome();
+        if (amountSum.compareTo(effectiveLimit) > 0) {
+            throw new IllegalArgumentException("Сумма фиксированных лимитов > лимита трат.");
         }
     }
 
@@ -175,9 +186,12 @@ public class BudgetServiceImpl implements BudgetService {
                 .map(LimitDto::getLimitValue)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        BigDecimal percentAsMoney = totalIncome.multiply(percentSum).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
-        if (percentAsMoney.add(amountSum).compareTo(totalIncome) > 0) {
-            throw new IllegalArgumentException("Общая сумма лимитов превышает доход.");
+        BigDecimal effectiveLimit = request.getSpendingLimit() != null ? request.getSpendingLimit() : totalIncome;
+        BigDecimal percentAsMoney = effectiveLimit.multiply(percentSum).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        BigDecimal totalAllocated = percentAsMoney.add(amountSum);
+        
+        if (totalAllocated.compareTo(effectiveLimit) > 0) {
+            throw new IllegalArgumentException("Общая сумма лимитов превышает лимит трат.");
         }
     }
 

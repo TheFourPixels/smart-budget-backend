@@ -10,6 +10,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import jakarta.servlet.http.HttpServletResponse;
 
 import java.time.Instant;
 import java.util.Map;
@@ -70,12 +71,25 @@ public class TransactionController {
     }
 
     @PostMapping
-    public TransactionDto create(@RequestBody CreateTransactionRequest req) {
+    @ResponseStatus(HttpStatus.CREATED)
+    public TransactionDto create(@Valid @RequestBody CreateTransactionRequest req) {
         return service.createTransaction(UserContext.getUserId(), req);
     }
 
     @GetMapping("/categories/{categoryId}/total")
     public CategoryTotalSpentDto getTotalSpentByCategory(@PathVariable Long categoryId) {
         return service.getTotalSpentByCategory(UserContext.getUserId(), categoryId);
+    }
+
+    @GetMapping("/export")
+    public void exportTransactionsToCSV(
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) Long startDateMillis,
+            @RequestParam(required = false) Long endDateMillis,
+            HttpServletResponse response) {
+        Instant start = startDateMillis != null ? Instant.ofEpochMilli(startDateMillis) : null;
+        Instant end = endDateMillis != null ? Instant.ofEpochMilli(endDateMillis) : null;
+        service.exportTransactionsToCsv(UserContext.getUserId(), categoryId, query, start, end, response);
     }
 }

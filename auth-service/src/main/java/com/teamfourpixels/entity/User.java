@@ -28,4 +28,6 @@ public class User {
     private boolean pushEnabled;
 
     private boolean emailEnabled;
+
+    private java.time.LocalDateTime lastLoginAt;
 }

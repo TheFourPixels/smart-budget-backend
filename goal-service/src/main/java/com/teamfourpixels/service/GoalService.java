@@ -8,14 +8,17 @@ import com.teamfourpixels.repository.GoalRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.reactive.function.client.WebClient;
-import reactor.core.publisher.Mono;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpMethod;
+import org.springframework.web.client.HttpClientErrorException;
+
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -30,7 +33,10 @@ import java.util.List;
 public class GoalService {
     private final GoalRepository repository;
     private final GoalMapper mapper;
-    private final WebClient budgetClient;
+    private final RestTemplate restTemplate = new RestTemplate();
+    
+    @Value("${service.budget.url}")
+    private String budgetServiceUrl;
 
     private final AnalyticsService analyticsService;
 
@@ -66,23 +72,23 @@ public class GoalService {
 
     private void checkBudgetExists(Long userId, int year, int month) {
         String jwt = (String) SecurityContextHolder.getContext().getAuthentication().getCredentials();
-
+        HttpHeaders headers = new HttpHeaders();
+        headers.set(USER_ID_HEADER, userId.toString());
+        headers.set(HttpHeaders.AUTHORIZATION, "Bearer " + jwt);
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+        
         try {
-            budgetClient.get()
-                    .uri("/api/v1/budgets/{year}/{month}", year, month)
-                    .header(USER_ID_HEADER, userId.toString())
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwt)
-                    .retrieve()
-                    .onStatus(status -> status == HttpStatus.NOT_FOUND,
-                            response -> Mono.error(new IllegalArgumentException(
-                                    String.format("Бюджет на %d/%d не найден. Создание цели невозможно.", month, year)
-                            ))
-                    )
-                    .onStatus(HttpStatusCode::isError, response -> Mono.error(new RuntimeException("Ошибка Budget Service")))
-                    .toBodilessEntity()
-                    .block();
-        } catch (RuntimeException e) {
-            throw e;
+            restTemplate.exchange(
+                    budgetServiceUrl + "/api/v1/budgets/" + year + "/" + month,
+                    HttpMethod.GET,
+                    entity,
+                    Void.class
+            );
+        } catch (HttpClientErrorException.NotFound e) {
+            throw new IllegalArgumentException(String.format("Бюджет на %d/%d не найден. Создание цели невозможно.", month, year));
+        } catch (Exception e) {
+            log.error("Error connecting to Budget Service at {}: {}", budgetServiceUrl, e.getMessage());
+            throw new RuntimeException("Ошибка Budget Service", e);
         }
     }
 
@@ -99,7 +105,6 @@ public class GoalService {
                 .orElseThrow(() -> new EntityNotFoundException("Цель не найдена"));
     }
 
-    @Transactional
     public GoalDto create(Long userId, CreateGoalRequest req) {
         YearMonth currentMonth = YearMonth.now();
         checkBudgetExists(userId, currentMonth.getYear(), currentMonth.getMonthValue());
@@ -163,6 +168,27 @@ public class GoalService {
             log.info("Пользователь {} достиг финансовой цели {}", userId, id);
         }
 
+        return addCalculatedFields(savedGoal);
+    }
+
+
+    @Transactional
+    public GoalDto completeEarly(Long userId, Long id) {
+        Goal goal = getByIdAndUser(id, userId);
+        
+        if (goal.getSavedAmount().compareTo(goal.getTargetAmount()) >= 0) {
+            return addCalculatedFields(goal);
+        }
+
+        goal.setSavedAmount(goal.getTargetAmount());
+        goal.setDeadline(LocalDate.now());
+
+        Goal savedGoal = repository.save(goal);
+
+        analyticsService.sendEvent(userId, "GOAL_COMPLETED_EARLY", 
+                String.format("{\"goalId\":%d, \"finalAmount\":%s}", id, savedGoal.getTargetAmount()));
+        
+        log.info("Пользователь досрочно завершил цель {", userId, id);
         return addCalculatedFields(savedGoal);
     }
 

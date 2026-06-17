@@ -10,6 +10,7 @@ public class DashboardResponse {
     private Integer month;
 
     private BigDecimal totalIncome;
+    private BigDecimal spendingLimit;
     private BigDecimal totalSpent;
     private BigDecimal remainingBudget;
 

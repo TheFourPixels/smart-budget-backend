@@ -15,13 +15,13 @@ public class TransactionEventListener {
 
     @KafkaListener(topics = "transaction-events", groupId = "budget-group")
     public void handleTransactionCreated(TransactionCreatedEvent event) {
-        log.info("Received transaction event for analysis: user={}, category={}",
+        log.info("Получено событие транзакции для анализа: user={}, category={}",
                 event.getUserId(), event.getCategoryId());
 
         try {
             budgetService.processTransactionEvent(event);
         } catch (Exception e) {
-            log.error("Error analyzing budget limits: {}", e.getMessage());
+            log.error("Ошибка при анализе лимитов бюджета: {}", e.getMessage());
         }
     }
 }

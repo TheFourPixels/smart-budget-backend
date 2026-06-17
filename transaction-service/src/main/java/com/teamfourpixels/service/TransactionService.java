@@ -1,6 +1,8 @@
 package com.teamfourpixels.service;
 
 import com.teamfourpixels.dto.*;
+import com.teamfourpixels.dto.TransactionAnalyticsPayload;
+import com.teamfourpixels.dto.AutoCategoryCorrectionPayload;
 import com.teamfourpixels.entity.Transaction;
 import com.teamfourpixels.entity.TransactionSplit;
 import com.teamfourpixels.enums.OperationType;
@@ -16,14 +18,20 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.opencsv.CSVWriter;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
+
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -44,6 +52,7 @@ public class TransactionService {
 
     private static final Long UNCATEGORIZED_ID = 999L;
     private static final Long SPLIT_CATEGORY_ID = -1L;
+    private final ConcurrentHashMap<Long, ReentrantLock> importLocks = new ConcurrentHashMap<>();
 
     @Transactional
     public TransactionDto createTransaction(Long userId, CreateTransactionRequest request) {
@@ -58,31 +67,43 @@ public class TransactionService {
         metricsService.incrementManualTransactions();
 
         analyticsService.sendEvent(userId, "TRANSACTION_ADDED",
-                String.format("{\"amount\":%s, \"type\":\"%s\", \"source\":\"manual\", \"categoryId\":%d}",
-                        saved.getAmount(), saved.getType(), saved.getCategoryId()));
+                TransactionAnalyticsPayload.builder()
+                        .amount(saved.getAmount())
+                        .type(saved.getType())
+                        .source("manual")
+                        .categoryId(saved.getCategoryId())
+                        .build());
 
-        return mapper.toDto(saved);
+        TransactionDto dto = mapper.toDto(saved);
+        enrichWithCategories(Collections.singletonList(dto));
+        return dto;
     }
 
     @Async
-    @Transactional
     public CompletableFuture<Integer> importAndClassifyTransactions(Long userId, int year, int month) {
-        return CompletableFuture.completedFuture(metricsService.recordBankSync(() -> {
-            log.info("Начинаем импорт транзакций для пользователя {} за {}/{}", userId, month, year);
+        return CompletableFuture.supplyAsync(() -> {
+            ReentrantLock lock = importLocks.computeIfAbsent(userId, k -> new ReentrantLock());
+            if (!lock.tryLock()) {
+                log.warn("Импорт для пользователя {} уже запущен", userId);
+                return 0;
+            }
+            try {
+                return metricsService.recordBankSync(() -> {
+                    log.info("Начинаем импорт транзакций для пользователя {} за {}/{}", userId, month, year);
             List<TransactionDto> bankTransactions = bankServiceClient.fetchTransactions(year, month);
 
             if (bankTransactions == null || bankTransactions.isEmpty()) return 0;
 
             int newCount = 0;
             List<ClassificationStrategy> sortedStrategies = classificationStrategies.stream()
-                    .sorted(Comparator.comparingInt(ClassificationStrategy::getPriority))
+                    .sorted(Comparator.comparingInt((ClassificationStrategy s) -> s.getPriority(userId)))
                     .toList();
 
             for (TransactionDto bankDto : bankTransactions) {
                 String uniqueRefId = bankDto.getExternalId() + "-u" + userId;
                 if (repository.findByUserIdAndBankTransactionRefId(userId, uniqueRefId).isPresent()) continue;
 
-                metricsService.incrementAutoImportedTransactions();
+                metricsService.incrementAutoImported();
                 Transaction transaction = convertBankDtoToTransaction(userId, bankDto, uniqueRefId);
 
                 Long categoryId = autoClassify(transaction, sortedStrategies);
@@ -97,8 +118,12 @@ public class TransactionService {
                 Transaction saved = repository.save(transaction);
 
                 analyticsService.sendEvent(userId, "TRANSACTION_ADDED",
-                        String.format("{\"amount\":%s, \"type\":\"%s\", \"source\":\"auto\", \"categoryId\":%d}",
-                                saved.getAmount(), saved.getType(), saved.getCategoryId()));
+                        TransactionAnalyticsPayload.builder()
+                                .amount(saved.getAmount())
+                                .type(saved.getType())
+                                .source("auto")
+                                .categoryId(saved.getCategoryId())
+                                .build());
 
                 if (saved.getType() == OperationType.EXPENSE) {
                     eventPublisher.publishCreatedEvent(saved);
@@ -108,7 +133,11 @@ public class TransactionService {
                 newCount++;
             }
             return newCount;
-        }));
+        });
+            } finally {
+                lock.unlock();
+            }
+        });
     }
 
     @Transactional
@@ -129,7 +158,9 @@ public class TransactionService {
         repository.save(transaction);
 
         auditService.saveAuditToOutbox(transaction, "TRANSACTION_SPLIT", oldCategoryId);
-        return mapper.toDto(transaction);
+        TransactionDto dto = mapper.toDto(transaction);
+        enrichWithCategories(Collections.singletonList(dto));
+        return dto;
     }
 
     @Transactional
@@ -145,15 +176,21 @@ public class TransactionService {
 
         if (!categoryId.equals(oldCategoryId)) {
             if (t.getBankTransactionRefId() != null) {
+                metricsService.incrementAutoCorrected();
                 analyticsService.sendEvent(userId, "AUTO_CATEGORY_CORRECTED",
-                        String.format("{\"transactionId\":%d, \"oldCat\":%d, \"newCat\":%d}",
-                                t.getId(), oldCategoryId, categoryId));
+                        AutoCategoryCorrectionPayload.builder()
+                                .transactionId(t.getId())
+                                .oldCat(oldCategoryId)
+                                .newCat(categoryId)
+                                .build());
             }
             t.setCategoryId(categoryId);
             repository.save(t);
             auditService.saveAuditToOutbox(t, "CATEGORY_CHANGED", oldCategoryId);
         }
-        return mapper.toDto(t);
+        TransactionDto dto = mapper.toDto(t);
+        enrichWithCategories(Collections.singletonList(dto));
+        return dto;
     }
 
     private void validateSplitSum(Transaction t, SplitTransactionRequest req) {
@@ -200,12 +237,46 @@ public class TransactionService {
     @Transactional(readOnly = true)
     public Page<TransactionDto> getTransactionsPage(Long userId, int page, int size, Long categoryId, String query, Instant start, Instant end) {
         Specification<Transaction> spec = new TransactionFilterSpecification(userId, categoryId, query, start, end);
-        return repository.findAll(spec, PageRequest.of(page, size, Sort.by("transactionTime").descending())).map(mapper::toDto);
+        Page<Transaction> entities = repository.findAll(spec, PageRequest.of(page, size, Sort.by("transactionTime").descending()));
+
+        List<TransactionDto> dtos = entities.stream().map(mapper::toDto).toList();
+        enrichWithCategories(dtos);
+
+        return new PageImpl<>(dtos, entities.getPageable(), entities.getTotalElements());
     }
 
     @Transactional(readOnly = true)
     public TransactionDto getTransactionDetails(Long userId, Long id) {
-        return mapper.toDto(getByIdAndUser(id, userId));
+        TransactionDto dto = mapper.toDto(getByIdAndUser(id, userId));
+        enrichWithCategories(Collections.singletonList(dto));
+        return dto;
+    }
+
+    private void enrichWithCategories(List<TransactionDto> dtos) {
+        if (dtos == null || dtos.isEmpty()) return;
+
+        List<Long> catIds = dtos.stream()
+                .map(dto -> dto.getCategory() != null ? dto.getCategory().getId() : null)
+                .filter(id -> id != null && id > 0 && !id.equals(UNCATEGORIZED_ID) && !id.equals(SPLIT_CATEGORY_ID))
+                .distinct()
+                .toList();
+
+        if (catIds.isEmpty()) return;
+
+        try {
+            Map<Long, CategoryDto> catMap = categoryQueryService.getCategoriesByIds(catIds).stream()
+                    .collect(Collectors.toMap(CategoryDto::getId, c -> c, (v1, v2) -> v1));
+
+            dtos.forEach(dto -> {
+                if (dto.getCategory() != null && catMap.containsKey(dto.getCategory().getId())) {
+                    dto.setCategory(catMap.get(dto.getCategory().getId()));
+                } else if (dto.getCategory() != null && !dto.getCategory().getId().equals(UNCATEGORIZED_ID) && !dto.getCategory().getId().equals(SPLIT_CATEGORY_ID)) {
+                    dto.getCategory().setName("Категория не найдена");
+                }
+            });
+        } catch (Exception e) {
+            log.error("Ошибка при пакетной загрузке категорий: {}", e.getMessage());
+        }
     }
 
     private Transaction getByIdAndUser(Long id, Long userId) {
@@ -216,5 +287,30 @@ public class TransactionService {
     public CategoryTotalSpentDto getTotalSpentByCategory(Long userId, Long categoryId) {
         BigDecimal total = repository.getTotalSpentByCategory(userId, categoryId, OperationType.EXPENSE);
         return new CategoryTotalSpentDto(categoryId, total == null ? BigDecimal.ZERO : total);
+    }
+
+    @Transactional(readOnly = true)
+    public void exportTransactionsToCsv(Long userId, Long categoryId, String query, Instant start, Instant end, HttpServletResponse response) {
+        response.setContentType("text/csv");
+        response.setHeader("Content-Disposition", "attachment; filename=\"transactions.csv\"");
+        try (CSVWriter writer = new CSVWriter(new OutputStreamWriter(response.getOutputStream(), StandardCharsets.UTF_8))) {
+            writer.writeNext(new String[]{"ID", "Date", "Amount", "Type", "Category ID", "Merchant", "Description"});
+            Specification<Transaction> spec = new TransactionFilterSpecification(userId, categoryId, query, start, end);
+            List<Transaction> transactions = repository.findAll(spec, Sort.by("transactionTime").descending());
+            for (Transaction t : transactions) {
+                writer.writeNext(new String[]{
+                        String.valueOf(t.getId()),
+                        t.getTransactionTime() != null ? t.getTransactionTime().toString() : "",
+                        t.getAmount() != null ? t.getAmount().toString() : "",
+                        t.getType() != null ? t.getType().name() : "",
+                        t.getCategoryId() != null ? t.getCategoryId().toString() : "",
+                        t.getMerchant() != null ? t.getMerchant() : "",
+                        t.getDescription() != null ? t.getDescription() : ""
+                });
+            }
+        } catch (Exception e) {
+            log.error("Не удалось экспортировать транзакции в CSV для пользователя {}", userId, e);
+            throw new RuntimeException("Ошибка при экспорте CSV", e);
+        }
     }
 }

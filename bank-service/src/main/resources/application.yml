@@ -24,3 +24,7 @@ management:
     web:
       exposure:
         include: health, info
+app:
+  transaction-service:
+    webhook-url: /api/v1/webhooks/bank-signal
+    api-key: 

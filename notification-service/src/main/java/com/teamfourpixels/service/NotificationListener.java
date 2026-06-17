@@ -10,6 +10,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
+import org.springframework.context.MessageSource;
+import java.util.Locale;
+
 import org.springframework.web.reactive.function.client.WebClient;
 
 import java.math.BigDecimal;
@@ -25,7 +28,8 @@ public class NotificationListener {
     private final NotificationRepository notificationRepository;
     private final FirebasePushService firebasePushService;
     private final DeviceTokenRepository deviceTokenRepository;
-    private final WebClient.Builder webClientBuilder;
+        private final WebClient.Builder webClientBuilder;
+    private final MessageSource messageSource;
 
     @KafkaListener(topics = "budget-limit-events", groupId = "notification-group")
     public void handleBudgetLimitEvent(BudgetLimitEvent event) {
@@ -36,16 +40,14 @@ public class NotificationListener {
         BigDecimal remaining = event.getLimitAmount().subtract(event.getCurrentSpent());
         if (remaining.compareTo(BigDecimal.ZERO) < 0) remaining = BigDecimal.ZERO;
 
+        Locale locale = new Locale("ru");
+        
         if (event.getPercentage() >= 100) {
-            title = "Лимит исчерпан!";
-            messageText = String.format("Лимит по категории %s исчерпан! Дальнейшие расходы будут сверх плана.",
-                    event.getCategoryName());
+            title = messageSource.getMessage("notification.limit.exhausted.title", null, locale);
+            messageText = messageSource.getMessage("notification.limit.exhausted.message", new Object[]{event.getCategoryName()}, locale);
         } else {
-            title = "Внимание!";
-            messageText = String.format("Вы потратили %d%% лимита на %s. Осталось %s ₽.",
-                    event.getPercentage(),
-                    event.getCategoryName(),
-                    remaining.setScale(0, RoundingMode.HALF_UP));
+            title = messageSource.getMessage("notification.limit.warning.title", null, locale);
+            messageText = messageSource.getMessage("notification.limit.warning.message", new Object[]{event.getPercentage(), event.getCategoryName(), remaining.setScale(0, RoundingMode.HALF_UP)}, locale);
         }
 
         notificationRepository.save(Notification.builder()

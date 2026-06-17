@@ -7,6 +7,7 @@ spring:
   cloud:
     gateway:
       globalcors:
+        add-to-simple-url-handler-mapping: true
         cors-configurations:
           '[/**]':
             allowedOriginPatterns:
@@ -25,7 +26,7 @@ spring:
         - id: auth-service
           uri: ${AUTH_SERVICE_URL}
           predicates:
-            - Path=/api/v1/auth/**, /api/v1/profile/**
+            - Path=/api/v1/auth/**, /api/v1/profile/**, /api/v1/admin/**
 
         - id: budget-service
           uri: ${BUDGET_SERVICE_URL}
@@ -35,7 +36,7 @@ spring:
         - id: transaction-service
           uri: ${TRANSACTION_SERVICE_URL}
           predicates:
-            - Path=/api/v1/transactions/**, /api/v1/rules/**
+            - Path=/api/v1/transactions/**, /api/v1/rules/**, /api/v1/webhooks/**
 
         - id: goal-service
           uri: ${GOAL_SERVICE_URL}

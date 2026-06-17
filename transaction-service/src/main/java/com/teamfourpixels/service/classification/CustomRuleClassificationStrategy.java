@@ -12,6 +12,7 @@ import java.util.Optional;
 @Component
 @RequiredArgsConstructor
 public class CustomRuleClassificationStrategy implements ClassificationStrategy {
+    private final com.teamfourpixels.service.StrategyPriorityService strategyPriorityService;
 
     private final CategorizationRuleRepository repository;
 
@@ -31,7 +32,5 @@ public class CustomRuleClassificationStrategy implements ClassificationStrategy 
     }
 
     @Override
-    public int getPriority() {
-        return 1;
-    }
+    public int getPriority(Long userId) { return strategyPriorityService.getPriority(userId, this.getClass().getSimpleName(), 1); }
 }

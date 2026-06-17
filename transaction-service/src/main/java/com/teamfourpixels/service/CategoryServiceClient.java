@@ -2,18 +2,51 @@ package com.teamfourpixels.service;
 
 import com.teamfourpixels.dto.CategoryDto;
 import jakarta.persistence.EntityNotFoundException;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
+
+import java.util.Collections;
+import java.util.List;
 
 @Service
-@RequiredArgsConstructor
 public class CategoryServiceClient implements CategoryQueryService {
 
     private final WebClient budgetWebClient;
+
+    public CategoryServiceClient(@Qualifier("budgetWebClient") WebClient budgetWebClient) {
+        this.budgetWebClient = budgetWebClient;
+    }
+
+    @Override
+    public List<CategoryDto> getCategoriesByIds(List<Long> categoryIds) {
+        if (categoryIds == null || categoryIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        String jwt = "";
+        try {
+            jwt = (String) SecurityContextHolder.getContext().getAuthentication().getCredentials();
+        } catch (Exception e) {
+        }
+
+        try {
+            return budgetWebClient.get()
+                    .uri(uriBuilder -> uriBuilder.path("/api/v1/categories/list")
+                            .queryParam("ids", categoryIds)
+                            .build())
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwt)
+                    .retrieve()
+                    .bodyToFlux(CategoryDto.class)
+                    .collectList()
+                    .block();
+        } catch (Exception e) {
+            return Collections.emptyList();
+        }
+    }
 
     @Override
     public CategoryDto getCategoryById(Long categoryId) {
@@ -25,17 +58,16 @@ public class CategoryServiceClient implements CategoryQueryService {
         try {
             jwt = (String) SecurityContextHolder.getContext().getAuthentication().getCredentials();
         } catch (Exception e) {
-            //если вызываем из async без контекста можно логировать или обрабатывать
         }
 
         try {
             return budgetWebClient.get()
-                    .uri("/api/v1/categories", categoryId)
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwt) // <---
+                    .uri("/api/v1/categories/{id}", categoryId)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwt)
                     .retrieve()
-                    .onStatus(status -> status == HttpStatus.NOT_FOUND, response -> {
-                        throw new EntityNotFoundException("Категория не найдена с ID: " + categoryId);
-                    })
+                    .onStatus(org.springframework.http.HttpStatusCode::is4xxClientError, response -> 
+                        Mono.error(new EntityNotFoundException("Категория не найдена с ID: " + categoryId))
+                    )
                     .bodyToMono(CategoryDto.class)
                     .block();
 

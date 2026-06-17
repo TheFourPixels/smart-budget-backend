@@ -41,13 +41,20 @@ jobs:
           echo "DB_HOST=db" >> .env
           echo "DB_NAME=${{ secrets.DB_NAME }}" >> .env
           echo "DB_PORT=${{ secrets.DB_PORT }}" >> .env
+          [[ -z "${{ secrets.DB_PORT }}" ]] && sed -i "s/DB_PORT=/DB_PORT=5432/" .env || true
           echo "JWT_EXPIRATION=${{ secrets.JWT_EXPIRATION }}" >> .env
           echo "AUTH_PORT=${{ secrets.AUTH_PORT }}" >> .env
+          [[ -z "${{ secrets.AUTH_PORT }}" ]] && sed -i "s/AUTH_PORT=/AUTH_PORT=8089/" .env || true
           echo "BUDGET_PORT=${{ secrets.BUDGET_PORT }}" >> .env
+          [[ -z "${{ secrets.BUDGET_PORT }}" ]] && sed -i "s/BUDGET_PORT=/BUDGET_PORT=8081/" .env || true
           echo "TRANSACTION_PORT=${{ secrets.TRANSACTION_PORT }}" >> .env
+          [[ -z "${{ secrets.TRANSACTION_PORT }}" ]] && sed -i "s/TRANSACTION_PORT=/TRANSACTION_PORT=8083/" .env || true
           echo "BANK_PORT=${{ secrets.BANK_PORT }}" >> .env
+          [[ -z "${{ secrets.BANK_PORT }}" ]] && sed -i "s/BANK_PORT=/BANK_PORT=8085/" .env || true
           echo "GOAL_PORT=${{ secrets.GOAL_PORT }}" >> .env
+          [[ -z "${{ secrets.GOAL_PORT }}" ]] && sed -i "s/GOAL_PORT=/GOAL_PORT=8087/" .env || true
           echo "DASHBOARD_PORT=${{ secrets.DASHBOARD_PORT }}" >> .env
+          [[ -z "${{ secrets.DASHBOARD_PORT }}" ]] && sed -i "s/DASHBOARD_PORT=/DASHBOARD_PORT=8088/" .env || true
           
           echo "AUDIT_PORT=${{ secrets.AUDIT_PORT }}" >> .env
           echo "AUDIT_SERVICE_URL=http://audit-service:${{ secrets.AUDIT_PORT }}" >> .env
@@ -63,6 +70,9 @@ jobs:
           echo "DASHBOARD_SERVICE_URL=http://dashboard-service:${{ secrets.DASHBOARD_PORT }}" >> .env
           
           echo "NOTIFICATION_SERVICE_URL=http://notification-service:8086" >> .env
+          echo "SPRING_CLICKHOUSE_DATASOURCE_JDBC_URL=jdbc:clickhouse://clickhouse:8123/smartbudget_analytics" >> .env
+          echo "SPRING_CLICKHOUSE_DATASOURCE_USERNAME=${{ secrets.DB_USER }}" >> .env
+          echo "SPRING_CLICKHOUSE_DATASOURCE_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
           
           echo "S3_URL=${{ secrets.S3_URL }}" >> .env
           echo "S3_ACCESS_KEY=${{ secrets.S3_ACCESS_KEY }}" >> .env
@@ -82,7 +92,7 @@ jobs:
         run: |
           npm install -g newman
           
-          newman run postman/API-SmartBudget.json \
+          newman run postman/API-SmartBudget-v6.json \
             --env-var "authBaseUrl=http://localhost:8080/api/v1" \
             --env-var "budgetBaseUrl=http://localhost:8080/api/v1" \
             --env-var "categoryBaseUrl=http://localhost:8080/api/v1" \
@@ -100,6 +110,8 @@ jobs:
           docker compose logs auth-service
           docker compose logs budget-service
           docker compose logs audit-service
+          docker compose logs transaction-service
+          docker compose logs clickhouse
 
       - name: Stop Services
         if: always()
