@@ -1,5 +1,5 @@
+imageRegistry: "progingir"
 global:
-  imageRegistry: "progingir"
   imagePullSecrets: []
   env:
     JWT_EXPIRATION: "86400000"
