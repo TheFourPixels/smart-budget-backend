@@ -40,6 +40,28 @@ spec:
             {{- end }}
             - name: SPRING_PROFILES_ACTIVE
               value: docker
+            {{- range $key, $val := $.Values.global.env }}
+            - name: {{ $key }}
+              value: {{ $val | quote }}
+            {{- end }}
+            {{- range $key, $val := $svc.env }}
+            - name: {{ $key }}
+              value: {{ $val | quote }}
+            {{- end }}
+            {{- range $key, $val := $.Values.global.secretEnv }}
+            - name: {{ $key }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $val.secretName }}
+                  key: {{ $val.key }}
+            {{- end }}
+            {{- range $key, $val := $svc.secretEnv }}
+            - name: {{ $key }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $val.secretName }}
+                  key: {{ $val.key }}
+            {{- end }}
 ---
 apiVersion: v1
 kind: Service
@@ -59,4 +81,3 @@ spec:
     app.kubernetes.io/name: {{ $name }}
     app.kubernetes.io/instance: {{ $.Release.Name }}
 {{- end }}
-
