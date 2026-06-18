@@ -7,9 +7,9 @@ appVersion: "1.0.0"
 dependencies:
   - name: postgresql
     version: 12.1.9
-    repository: "https://mirror.yandex.ru/mirrors/bitnami-charts/"
+    repository: "oci://registry-1.docker.io/bitnamicharts"
     condition: postgresql.enabled
   - name: kafka
     version: 26.8.0
-    repository: "https://mirror.yandex.ru/mirrors/bitnami-charts/"
+    repository: "oci://registry-1.docker.io/bitnamicharts"
     condition: kafka.enabled
